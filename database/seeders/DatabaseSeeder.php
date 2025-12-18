@@ -106,6 +106,10 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        $this->call(UserRoleSeeder::class);
+        $this->call([
+            UnitSeeder::class,
+            ProductSeeder::class,
+            UserRoleSeeder::class,
+        ]);
     }
 }

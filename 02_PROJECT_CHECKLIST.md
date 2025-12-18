@@ -8,11 +8,13 @@ Status Legend:
 ## Phase 1: Foundation & Master Data
 - [x] **Instalasi:** Laravel, Filament v4, Spatie, Shield.
 - [x] **Dependencies:** Install Excel, DomPDF, dan Backup manager.
-- [ ] **User Management:** Setup Role (Owner, Admin Gudang, Produksi, Sales).
-- [ ] **Master Warehouses:** CRUD Gudang (Pabrik, Pagu, Tanjung, Candi).
+- [x] **User Management:** Setup Role (Owner, Admin Gudang, Produksi, Sales).
+- [x] **Master Warehouses:** CRUD Gudang (Pabrik, Pagu, Tanjung, Candi).
+- [ ] **Master Units:** KG, Ekor, Pack, Karung.
 - [ ] **Master Products:**
-    - [ ] Field: Nama, Tipe, Satuan (Kg & Ekor).
-    - [ ] Kategori: Fresh vs Frozen.
+    - [ ] Field: Kode (Terdapat Tombol Generate Kode Otomatis),Nama, Tipe, Satuan (KG, Ekor, Pack, Karung).
+    - [ ] Kategori Produk: Hasil Panen, Live Bird, Produk, Umum.
+    - [ ] Jenis Produk: Persediaan, Jasa, Non-Persediaan.
 - [ ] **Master COA (Chart of Accounts):** Struktur Parent-Child & Saldo Awal.
 
 ## Phase 2: Purchasing & Inbound (Hulu)
