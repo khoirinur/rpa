@@ -6,8 +6,8 @@ Status Legend:
 [ ] = Belum Dikerjakan
 
 ## Phase 1: Foundation & Master Data
-- [ ] **Instalasi:** Laravel, Filament v4, Spatie, Shield.
-- [ ] **Dependencies:** Install Excel, DomPDF, dan Backup manager.
+- [x] **Instalasi:** Laravel, Filament v4, Spatie, Shield.
+- [x] **Dependencies:** Install Excel, DomPDF, dan Backup manager.
 - [ ] **User Management:** Setup Role (Owner, Admin Gudang, Produksi, Sales).
 - [ ] **Master Warehouses:** CRUD Gudang (Pabrik, Pagu, Tanjung, Candi).
 - [ ] **Master Products:**

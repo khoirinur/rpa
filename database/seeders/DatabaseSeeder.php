@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -41,6 +43,59 @@ class DatabaseSeeder extends Seeder
 
         if (! $ownerUser->hasRole($ownerRole->name)) {
             $ownerUser->assignRole($ownerRole);
+        }
+
+        $warehouses = [
+            [
+                'code' => 'PBRK',
+                'name' => 'Gudang Pabrik',
+                'location' => 'Surabaya - Pabrik Utama',
+                'is_default' => true,
+                'contact_name' => 'Supervisor Pabrik',
+                'contact_phone' => '0811-111-111',
+                'capacity_kg' => 12000,
+            ],
+            [
+                'code' => 'PGU',
+                'name' => 'Gudang Pagu',
+                'location' => 'Pagu - Kediri',
+                'contact_name' => 'Admin Gudang Pagu',
+                'contact_phone' => '0811-222-222',
+                'capacity_kg' => 8000,
+            ],
+            [
+                'code' => 'TNJG',
+                'name' => 'Gudang Tanjung',
+                'location' => 'Tanjung - Blitar',
+                'contact_name' => 'Admin Gudang Tanjung',
+                'contact_phone' => '0811-333-333',
+                'capacity_kg' => 6000,
+            ],
+            [
+                'code' => 'CND',
+                'name' => 'Gudang Candi',
+                'location' => 'Candi - Sidoarjo',
+                'contact_name' => 'Admin Gudang Candi',
+                'contact_phone' => '0811-444-444',
+                'capacity_kg' => 4000,
+            ],
+        ];
+
+        foreach ($warehouses as $warehouseData) {
+            Warehouse::updateOrCreate(
+                ['code' => $warehouseData['code']],
+                [
+                    'name' => $warehouseData['name'],
+                    'slug' => Str::slug($warehouseData['name']),
+                    'location' => $warehouseData['location'] ?? null,
+                    'contact_name' => $warehouseData['contact_name'] ?? null,
+                    'contact_phone' => $warehouseData['contact_phone'] ?? null,
+                    'capacity_kg' => $warehouseData['capacity_kg'] ?? null,
+                    'is_default' => $warehouseData['is_default'] ?? false,
+                    'is_active' => $warehouseData['is_active'] ?? true,
+                    'notes' => $warehouseData['notes'] ?? null,
+                ],
+            );
         }
     }
 }

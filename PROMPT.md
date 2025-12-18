@@ -17,7 +17,7 @@ Saya menyusunnya dalam bahasa campuran (Inggris teknis + Indonesia) karena biasa
 > Confirm that you understand this is an **RPA (Slaughterhouse) ERP** project and you will strictly follow the **Filament Shield RBAC** syntax.
 > After confirming, please look at `02_PROJECT_CHECKLIST.md`, identify the first unchecked item in **Phase 1**, and guide me on how to implement it. Don't generate code yet, just explain the plan first."
 
----
+---V
 
 ###2. Prompt Melanjutkan Pekerjaan (Continuing)*Gunakan ini setelah satu fitur selesai dan ingin lanjut ke fitur berikutnya.*
 
