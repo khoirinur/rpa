@@ -47,21 +47,13 @@ class DatabaseSeeder extends Seeder
 
         $warehouses = [
             [
-                'code' => 'PBRK',
-                'name' => 'Gudang Pabrik',
-                'location' => 'Surabaya - Pabrik Utama',
-                'is_default' => true,
-                'contact_name' => 'Supervisor Pabrik',
-                'contact_phone' => '0811-111-111',
-                'capacity_kg' => 12000,
-            ],
-            [
-                'code' => 'PGU',
+                'code' => 'PAGU',
                 'name' => 'Gudang Pagu',
                 'location' => 'Pagu - Kediri',
+                'is_default' => true,
                 'contact_name' => 'Admin Gudang Pagu',
-                'contact_phone' => '0811-222-222',
-                'capacity_kg' => 8000,
+                'contact_phone' => '0811-111-111',
+                'capacity_kg' => 12000,
             ],
             [
                 'code' => 'TNJG',
@@ -72,7 +64,7 @@ class DatabaseSeeder extends Seeder
                 'capacity_kg' => 6000,
             ],
             [
-                'code' => 'CND',
+                'code' => 'CNDI',
                 'name' => 'Gudang Candi',
                 'location' => 'Candi - Sidoarjo',
                 'contact_name' => 'Admin Gudang Candi',
