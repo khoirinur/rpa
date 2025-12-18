@@ -10,12 +10,13 @@ Status Legend:
 - [x] **Dependencies:** Install Excel, DomPDF, dan Backup manager.
 - [x] **User Management:** Setup Role (Owner, Admin Gudang, Produksi, Sales).
 - [x] **Master Warehouses:** CRUD Gudang (Pabrik, Pagu, Tanjung, Candi).
-- [ ] **Master Units:** KG, Ekor, Pack, Karung.
+- [x] **Master Units:** KG, Ekor, Pack, Karung.
 - [ ] **Master Products:**
     - [ ] Field: Kode (Terdapat Tombol Generate Kode Otomatis),Nama, Tipe, Satuan (KG, Ekor, Pack, Karung).
     - [ ] Kategori Produk: Hasil Panen, Live Bird, Produk, Umum.
     - [ ] Jenis Produk: Persediaan, Jasa, Non-Persediaan.
-- [ ] **Master COA (Chart of Accounts):** Struktur Parent-Child & Saldo Awal.
+- [x] **Master COA (Chart of Accounts):** Struktur Parent-Child & Saldo Awal.
+    - [ ] Buat fitur Import daftar akun perkiraan.csv
 
 ## Phase 2: Purchasing & Inbound (Hulu)
 - [ ] **Pembelian Ayam Hidup:**

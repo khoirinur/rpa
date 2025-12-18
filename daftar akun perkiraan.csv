@@ -1,0 +1,222 @@
+Kode Akun,Nama Akun,Tipe Akun,Induk Akun
+1000,Kas & Bank,Kas & Bank,
+1100,Kas,Kas & Bank,1000
+110001,Kas Kecil,Kas & Bank,1100
+110002,Kas Besar,Kas & Bank,1100
+110003,Kas Induk,Kas & Bank,1100
+110004,Kas Transit,Kas & Bank,1100
+1102,Bank,Kas & Bank,1000
+110202,BRI Surya Kencana,Kas & Bank,1102
+110203,BCA An. Riyan,Kas & Bank,1102
+110204,BCA Surya Kencana,Kas & Bank,1102
+110205,BCA Podomoro,Kas & Bank,1102
+110206,BCA An. Pepbri Sugraha,Kas & Bank,1102
+110207,Bank Jatim,Kas & Bank,1102
+110208,Bank Mandiri An. Nala,Kas & Bank,1102
+110209,Bank BTN An. Samsiyah,Kas & Bank,1102
+110210,Bank Induk,Kas & Bank,1102
+1103,Setara Kas,Kas & Bank,1000
+110301,Deposito Bank,Kas & Bank,1103
+1104,Piutang Usaha,Piutang Usaha,
+110401,Piutang Usaha IDR,Piutang Usaha,1104
+110402,Uang Muka Pembelian IDR,Piutang Usaha,1104
+1105,Persediaan,Persediaan,
+110501,Persediaan,Persediaan,1105
+110502,Persediaan Terkirim,Persediaan,1105
+110503,Persediaan Dalam Proses,Persediaan,1105
+1106,R/K. Afiliasi,Aset Lancar Lainnya,
+110602,R/K. Afiliasi - Cahaya Foodies,Aset Lancar Lainnya,1106
+110601,Piutang Karyawan,Aset Lancar Lainnya,1106
+11060101,Piutang Karyawan - Filet,Aset Lancar Lainnya,110601
+1107,Piutang Pemegang Saham,Aset Lancar Lainnya,
+110701,Piutang Pemegang Saham,Aset Lancar Lainnya,1107
+11070101,Piutang / (Hutang) Direksi,Aset Lancar Lainnya,110701
+1108,Beban Dibayar Dimuka,Aset Lancar Lainnya,
+110801,Sewa Gedung Dibayar Dimuka,Aset Lancar Lainnya,1108
+110802,Asuransi Dibayar Dimuka,Aset Lancar Lainnya,1108
+1109,Uang Muka Pajak,Aset Lancar Lainnya,
+110901,PPN Masukan,Aset Lancar Lainnya,1109
+110902,PPh 23 Penjualan,Aset Lancar Lainnya,1109
+110903,PPh Pasal 4 (2) Penjualan,Aset Lancar Lainnya,1109
+110904,PPh Pasal 25,Aset Lancar Lainnya,1109
+1110,Aset Lancar Lainnya,Aset Lancar Lainnya,
+111001,Piutang Lain-Lain,Aset Lancar Lainnya,1110
+111002,Pembelian Aset,Aset Lancar Lainnya,1110
+1200,Aset Tetap,Aset Tetap,
+120001,Tanah,Aset Tetap,1200
+120002,Gedung,Aset Tetap,1200
+120003,Kendaraan,Aset Tetap,1200
+120004,Peralatan,Aset Tetap,1200
+120005,Inventaris Kantor,Aset Tetap,1200
+120007,Mesin,Aset Tetap,1200
+120006,Akumulasi Depresiasi Aset Tetap,Akumulasi Penyusutan,1200
+12000601,Akumulasi Penyusutan Gedung,Akumulasi Penyusutan,120006
+12000602,Akumulasi Penyusutan Kendaraan,Akumulasi Penyusutan,120006
+12000603,Akumulasi Penyusutan Peralatan,Akumulasi Penyusutan,120006
+12000604,Akumulasi Penyusutan Inventaris Kantor,Akumulasi Penyusutan,120006
+12000605,Akumulasi Penyusutan Mesin,Akumulasi Penyusutan,120006
+2101,Utang Usaha,Utang Usaha,
+210101,Utang Usaha IDR,Utang Usaha,2101
+210102,Uang Muka Penjualan IDR,Utang Usaha,2101
+2102,PPN Keluaran,Liabilitas Jangka Pendek,
+210201,Biaya Yang Masih Harus Dibayar,Liabilitas Jangka Pendek,2102
+21020101,BMHD - Gaji,Liabilitas Jangka Pendek,210201
+21020102,BMHD - Komisi Penjualan,Liabilitas Jangka Pendek,210201
+21020103,BMHD - Listrik,Liabilitas Jangka Pendek,210201
+21020104,BMHD - PDAM,Liabilitas Jangka Pendek,210201
+21020105,BMHD - Telekomunikasi,Liabilitas Jangka Pendek,210201
+21020106,BMHD - Internet,Liabilitas Jangka Pendek,210201
+210202,Hutang Sewa Gedung,Liabilitas Jangka Pendek,2102
+210203,Hutang Pembelian Kendaraan,Liabilitas Jangka Pendek,2102
+210204,Hutang Premi Kesehatan,Liabilitas Jangka Pendek,2102
+210205,Hutang Pembelian Belum Ditagih,Liabilitas Jangka Pendek,2102
+210206,Hutang Lain Lain,Liabilitas Jangka Pendek,2102
+210207,Hutang Karyawan,Liabilitas Jangka Pendek,2102
+210208,Hutang Komisi Penjualan,Liabilitas Jangka Pendek,2102
+2103,Hutang Pemegang Saham,Liabilitas Jangka Pendek,
+210301,Hutang Pemegang Saham,Liabilitas Jangka Pendek,2103
+2109,Hutang Pajak,Liabilitas Jangka Pendek,
+210901,Hutang PPh Pasal 21,Liabilitas Jangka Pendek,2109
+210902,Hutang PPh Pasal 22,Liabilitas Jangka Pendek,2109
+210903,PPh 23 Pembelian,Liabilitas Jangka Pendek,2109
+210904,PPh Ps. 4(2) Pembelian,Liabilitas Jangka Pendek,2109
+210905,Hutang PPh Pasal 25,Liabilitas Jangka Pendek,2109
+210906,Hutang PPh Pasal 29,Liabilitas Jangka Pendek,2109
+210907,PPN Keluaran,Liabilitas Jangka Pendek,2109
+210908,Hutang PBB,Liabilitas Jangka Pendek,2109
+210909,"Hutang Pajak Lainnya (STP, Denda Pajak)",Liabilitas Jangka Pendek,2109
+2110,Pinjaman Jangka Pendek,Liabilitas Jangka Pendek,
+211001,Hutang Bank,Liabilitas Jangka Pendek,2110
+2201,Hutang Jangka Panjang,Liabilitas Jangka Panjang,
+220101,Hutang Bank,Liabilitas Jangka Panjang,2201
+3000,Modal,Modal,
+300001,Equitas Saldo Awal,Modal,3000
+300002,Modal Saham,Modal,3000
+300003,Laba Ditahan,Modal,3000
+4000,Pendapatan Operasional,Pendapatan,
+400001,Penjualan,Pendapatan,4000
+400002,Pendapatan Jasa,Pendapatan,4000
+400003,Retur Penjualan,Pendapatan,4000
+400004,Diskon Penjualan,Pendapatan,4000
+4201,Retur Penjualan,Pendapatan,
+4401,Diskon Penjualan,Pendapatan,
+440101,Diskon Penjualan IDR,Pendapatan,4401
+5101,Beban Pokok Penjualan,Beban Pokok Penjualan,
+510101,Beban Pokok Penjualan,Beban Pokok Penjualan,5101
+510102,Koreksi Persediaan,Beban Pokok Penjualan,5101
+510103,Beban Penyusutan Stok (Shrinkage),Beban Pokok Penjualan,5101
+5102,Beban Pokok Produksi,Beban Pokok Penjualan,
+510201,Beban Produksi - Gaji Upah TKL,Beban Pokok Penjualan,5102
+510202,Beban Produksi - Bahan Penunjang,Beban Pokok Penjualan,5102
+510203,Beban Alokasi BOP,Beban Pokok Penjualan,5102
+510204,Beban Produksi - Jasa Ekspedisi,Beban Pokok Penjualan,5102
+510205,Beban Produksi - Insentif dan Bonus,Beban Pokok Penjualan,5102
+6001,Beban Operasional,Beban,
+6101,Beban Operasional,Beban,6001
+6102,Beban Jasa Pengiriman,Beban,6101
+6103,Beban Pengadaan Import,Beban,6101
+6104,Beban Potongan Toko Cabang Marketplace,Beban,6101
+6105,Beban Perlengkapan Penjualan,Beban,6101
+6106,Beban Kelancaran/Entertaiment Operasional,Beban,6101
+6107,Beban Refund Customer,Beban,6101
+6108,Beban Klaim Garansi,Beban,6101
+61100,Beban Akomodasi Perjalanan,Beban,6101
+6199,Beban Operasional Lainnya,Beban,6101
+6201,Beban Pemasaran,Beban,
+6202,Beban Iklan Dan Promosi,Beban,6201
+6203,Beban Komisi Penjualan,Beban,6201
+6204,Beban Barang Hadiah,Beban,6201
+6205,Beban Insentif Dan Bonus,Beban,6201
+6206,Beban Pameran,Beban,6201
+6207,Beban Gaji Tenaga Penjualan,Beban,6201
+6208,Beban Cashback,Beban,6201
+7001,Beban Administrasi Dan Umum,Beban,
+7101,Beban Pegawai,Beban,7001
+7102,"Beban Gaji, Upah & Honorer",Beban,7101
+7103,"Beban Bonus, Lembur, Dan Insentif",Beban,7101
+7104,Beban Transportasi Karyawan,Beban,7101
+7105,Beban Tunjangan Makan Karyawan,Beban,7101
+7106,Beban Tunjangan Jabatan,Beban,7101
+7107,Beban BPJS Kesehatan,Beban,7101
+7108,Beban BPJS Ketenagakerjaan,Beban,7101
+7109,Beban THR,Beban,7101
+7110,Beban Tunjangan Telekomunikasi,Beban,7101
+7111,Beban Tunjangan Kesehatan,Beban,7101
+7112,Beban Kesehatan dan Keselamatan Karyawan,Beban,7101
+7113,Beban Kesejahteraan Karyawan,Beban,7101
+7201,Beban Utilitas,Beban,7001
+720101,Beban Listrik,Beban,7201
+720102,Beban PDAM,Beban,7201
+720103,Beban Telekomunikasi,Beban,7201
+720104,Beban Internet,Beban,7201
+7301,Beban Adum Lainnya,Beban,7001
+7302,"Beban Ekspedisi, Pos & Materai",Beban,7301
+7303,Beban Perjalanan Dinas,Beban,7301
+7304,"Beban Bensin, Parkir, Tol Kendaraan, Ojol",Beban,7301
+7305,Beban Perlengkapan Kantor,Beban,7301
+7306,Beban Retribusi & Sumbangan,Beban,7301
+7307,Beban Sewa Gedung,Beban,7301
+7308,Beban Konsumsi Dan Rumah Tangga,Beban,7301
+7309,Beban Jasa Kebersihan,Beban,7301
+7310,"Beban ATK, Fotocopy dan Cetakan",Beban,7301
+7311,Beban Jasa Profesional,Beban,7301
+7312,Beban Jasa Notaris Dan Perijinan,Beban,7301
+7313,"Beban KIR, Pajak Dan Surat Kendaran",Beban,7301
+7314,Beban Direksi,Beban,7301
+7315,Beban Software Akuntansi,Beban,7301
+7316,Beban PBB,Beban,7301
+7317,Beban Iuran Dan Langganan,Beban,7301
+7318,"Beban Taktis, Kelancaran",Beban,7301
+7319,Beban Denda Keterlambatan,Beban,7301
+7399,Beban Kantor Lainnya,Beban,7301
+7401,Beban Perpajakan,Beban,7001
+7402,Beban PPh 21,Beban,7401
+7403,Beban Tagihan Pajak,Beban,7401
+7404,Beban PPh Pasal 4 (2),Beban,7401
+7405,Beban PPh 25/29,Beban,7401
+7406,Beban Pajak KIR,Beban,7401
+7501,Beban Pemeliharaan,Beban,7001
+7502,Beban Pemeliharaan Gedung,Beban,7501
+7503,Beban Pemeliharaan Kendaraan,Beban,7501
+7504,Beban Pemeliharaan Peralatan Kantor,Beban,7501
+7601,Beban Penyusutan,Beban,7001
+7602,Beban Penyusutan Gedung,Beban,7601
+7603,Beban Penyusutan Kendaraan,Beban,7601
+7604,Beban Penyusutan Peralatan,Beban,7601
+7605,Beban Penyusutan Inventaris Kantor,Beban,7601
+7606,Beban Penyusutan Mesin,Beban,7601
+8101,Pendapatan Diluar Usaha,Pendapatan Lainnya,
+8102,Pendapatan Jasa Giro,Pendapatan Lainnya,8101
+8103,Pendapatan Bunga Deposito,Pendapatan Lainnya,8101
+8104,Penjualan Persediaan / Perlengkapan,Pendapatan Lainnya,8101
+8105,Laba/Rugi Revaluasi Aset,Pendapatan Lainnya,8101
+8106,Pendapatan Diluar Usaha Lainnya,Pendapatan Lainnya,8101
+8107,Pendapatan Ongkos Kirim,Pendapatan Lainnya,8101
+8108,Pendapatan Bunga Piutang,Pendapatan Lainnya,8101
+8109,Pendapatan Klaim / Cashback,Pendapatan Lainnya,8101
+8110,Laba Selisih Kurs,Pendapatan Lainnya,8101
+8111,Laba Penjualan Aktiva Tetap,Pendapatan Lainnya,8101
+8112,Pendapatan Sewa,Pendapatan Lainnya,8101
+8113,Pendapatan Investasi,Pendapatan Lainnya,8101
+8114,Pendapatan Bongkar Muat,Pendapatan Lainnya,8101
+8115,Pendapatan Bongkar Gudang,Pendapatan Lainnya,8101
+8201,Beban Diluar Usaha,Beban Lainnya,
+8202,Beban Bunga Pinjaman,Beban Lainnya,8201
+8203,Beban Adm. Bank & Buku Cek/Giro,Beban Lainnya,8201
+8204,Pajak Jasa Giro,Beban Lainnya,8201
+8205,Laba/Rugi Disposisi Aset,Beban Lainnya,8201
+8206,Beban Diluar Usaha Lainnya,Beban Lainnya,8201
+8207,Beban Penghapusan Piutang Tak Tertagih,Beban Lainnya,8201
+8208,Selisih Buku Deposit,Beban Lainnya,8201
+8209,Rugi Penjualan Aktiva Tetap,Beban Lainnya,8201
+8210,Rugi Selisih Kurs,Beban Lainnya,8201
+8211,Beban Investasi,Beban Lainnya,8201
+8212,Beban Selisih Opname,Beban Lainnya,8201
+8213,Beban Gaji Bongkar Muat,Beban Lainnya,8201
+8214,Beban Gaji Bongkar Gudang,Beban Lainnya,8201
+9001,Laba/Rugi Terealisasi,Beban Lainnya,
+900101,Laba/Rugi Terealisasi IDR,Beban Lainnya,9001
+900102,Laba/Rugi Terealisasi USD,Beban Lainnya,9001
+9002,Laba/Rugi Belum Terealisasi,Beban Lainnya,
+900201,Laba/Rugi Belum Terealisasi IDR,Beban Lainnya,9002
+900202,Laba/Rugi Belum Terealisasi USD,Beban Lainnya,9002
