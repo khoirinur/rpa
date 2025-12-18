@@ -58,7 +58,7 @@ class DatabaseSeeder extends Seeder
             [
                 'code' => 'TNJG',
                 'name' => 'Gudang Tanjung',
-                'location' => 'Tanjung - Blitar',
+                'location' => 'Tanjung - Kediri',
                 'contact_name' => 'Admin Gudang Tanjung',
                 'contact_phone' => '0811-333-333',
                 'capacity_kg' => 6000,
