@@ -37,13 +37,29 @@ class DatabaseSeeder extends Seeder
         $guardName = config('auth.defaults.guard', 'web');
 
         $ownerRole = Role::firstOrCreate([
-            'name' => config('filament-shield.super_admin.name', 'owner'),
+            'name' => 'owner',
             'guard_name' => $guardName,
         ]);
 
         if (! $ownerUser->hasRole($ownerRole->name)) {
             $ownerUser->assignRole($ownerRole);
         }
+
+        $roleManagementPermissions = [
+            'ViewAny:Role',
+            'View:Role',
+            'Create:Role',
+            'Update:Role',
+            'Delete:Role',
+            'Restore:Role',
+            'RestoreAny:Role',
+            'ForceDelete:Role',
+            'ForceDeleteAny:Role',
+            'Replicate:Role',
+            'Reorder:Role',
+        ];
+
+        $ownerRole->revokePermissionTo($roleManagementPermissions);
 
         $warehouses = [
             [
