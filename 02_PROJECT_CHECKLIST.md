@@ -11,6 +11,11 @@ Status Legend:
 - [x] **User Management:** Setup Role (Owner, Admin Gudang, Produksi, Sales).
 - [x] **Master Warehouses:** CRUD Gudang (Pabrik, Pagu, Tanjung, Candi).
 - [x] **Master Units:** KG, Ekor, Pack, Karung.
+- [ ] **Master Activity Logs:** Track perubahan data penting.
+    - [ ] Field: User, Tipe Aktivitas, Deskripsi, Tanggal & Waktu.
+    - [ ] Buat fitur membatalkan aktivitas yang dipilih.
+    - [ ] Pastikan semua modul utama mencatat aktivitas CRUD, Termasuk Import.
+    - [ ] Cek semua resource yang telah selesai sudah terhubung dengan activity log.
 - [ ] **Master Product Categories:** CRUD kategori produk.
     - [ ] Field: Kode Kategori, Nama Kategori.
     - [ ] Seeder default kategori: Hasil Panen, Live Bird, Produk, Umum.
@@ -22,7 +27,7 @@ Status Legend:
         - [ ] Sesuaikan kategori produk yang ada di products.csv dengan data dari master product categories.
         - [ ] Sesuaikan satuan produk yang ada di products.csv dengan data dari master units.
 - [x] **Master COA (Chart of Accounts):** Struktur Parent-Child & Saldo Awal.
-    - [ ] Buat fitur Import coa.csv
+    - [x] Buat fitur Import coa.csv
 - [ ] **Master Supplier Categories:** CRUD kategori supplier.
     - [ ] Field: Kode Kategori, Nama Kategori.
     - [ ] Seeder default kategori: Umum, Bahan Baku, Perlengkapan, Jasa.
