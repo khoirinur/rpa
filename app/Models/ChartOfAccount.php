@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Models\Warehouse;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ChartOfAccount extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, LogsActivity;
 
     public const TYPE_OPTIONS = [
         'asset' => 'Aset',

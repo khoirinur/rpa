@@ -22,6 +22,8 @@ Sistem ini adalah **Disassembly Manufacturing** (1 Input -> Banyak Output), BUKA
 Setiap komponen sensitif (Kolom Harga Beli, Tombol Delete, Menu Laporan Laba Rugi) WAJIB menggunakan syntax visibility Laravel Shield/Spatie secara eksplisit.
 Contoh: `->visible(fn () => auth()->user()->can('view_buying_price'))`
 
+**[IMPORTANT] Pastikan semua resource menggunakan trait `LogsActivity` untuk audit trail.**
+
 ### 4. Known Mistakes / Do Not Repeat (Catatan Evaluasi)
 - **Jangan gunakan Float:** Gunakan `decimal`.
 - **Jangan Hapus Data:** Gunakan `SoftDeletes` saja.

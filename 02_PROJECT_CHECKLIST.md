@@ -14,11 +14,16 @@ Status Legend:
 - [ ] **Master Activity Logs:** Track perubahan data penting.
     - [ ] Field: User, Tipe Aktivitas, Deskripsi, Tanggal & Waktu.
     - [ ] Buat fitur membatalkan aktivitas yang dipilih.
-    - [ ] Pastikan semua modul utama mencatat aktivitas CRUD, Termasuk Import.
+    - [x] Pastikan semua modul utama mencatat aktivitas CRUD, Termasuk Import.
     - [ ] Cek semua resource yang telah selesai sudah terhubung dengan activity log.
-- [ ] **Master Product Categories:** CRUD kategori produk.
-    - [ ] Field: Kode Kategori, Nama Kategori.
-    - [ ] Seeder default kategori: Hasil Panen, Live Bird, Produk, Umum.
+    - [x] Buat filament page untuk melihat activity log dengan filter by user, tanggal, dan tipe aktivitas.
+        - [x] Tambahkan fitur export log ke format CSV dan PDF.
+        - [x] Di dalam edit page activity log, tambahkan tombol "Revert" untuk mengembalikan data ke kondisi sebelum perubahan.
+        - Catatan berikutnya:
+            1. Lakukan smoke test pada resource dan fitur export untuk memastikan sinkron dengan izin Shield.
+- [x] **Master Product Categories:** CRUD kategori produk.
+    - [x] Field: Kode Kategori, Nama Kategori.
+    - [x] Seeder default kategori: Hasil Panen, Live Bird, Produk, Umum.
 - [ ] **Master Products:**
     - [ ] Field: Kode (Terdapat Tombol Generate Kode Otomatis),Nama, Tipe, Satuan (KG, Ekor, Pack, Karung).
     - [ ] Jenis Produk: Persediaan, Jasa, Non-Persediaan.
