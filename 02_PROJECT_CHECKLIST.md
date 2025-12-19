@@ -12,25 +12,29 @@ Status Legend:
 - [x] **Master Warehouses:** CRUD Gudang (Pabrik, Pagu, Tanjung, Candi).
 - [x] **Master Units:** KG, Ekor, Pack, Karung.
 - [ ] **Master Activity Logs:** Track perubahan data penting.
-    - [ ] Field: User, Tipe Aktivitas, Deskripsi, Tanggal & Waktu.
-    - [ ] Buat fitur membatalkan aktivitas yang dipilih.
+    - [x] Field: User, Tipe Aktivitas, Deskripsi, Tanggal & Waktu.
+    - [x] Buat fitur membatalkan aktivitas yang dipilih.
     - [x] Pastikan semua modul utama mencatat aktivitas CRUD, Termasuk Import.
     - [ ] Cek semua resource yang telah selesai sudah terhubung dengan activity log.
     - [x] Buat filament page untuk melihat activity log dengan filter by user, tanggal, dan tipe aktivitas.
         - [x] Tambahkan fitur export log ke format CSV dan PDF.
         - [x] Di dalam edit page activity log, tambahkan tombol "Revert" untuk mengembalikan data ke kondisi sebelum perubahan.
         - Catatan berikutnya:
-            1. Lakukan smoke test pada resource dan fitur export untuk memastikan sinkron dengan izin Shield.
+            - [ ] Lakukan smoke test pada resource dan fitur export untuk memastikan sinkron dengan izin Shield.
+            - [x] Integrasikan log ini ke modul produk setelah selesai.
 - [x] **Master Product Categories:** CRUD kategori produk.
     - [x] Field: Kode Kategori, Nama Kategori.
     - [x] Seeder default kategori: Hasil Panen, Live Bird, Produk, Umum.
-- [ ] **Master Products:**
-    - [ ] Field: Kode (Terdapat Tombol Generate Kode Otomatis),Nama, Tipe, Satuan (KG, Ekor, Pack, Karung).
-    - [ ] Jenis Produk: Persediaan, Jasa, Non-Persediaan.
+- [-] **Master Products:**
+    - [x] Field: Kode (Terdapat Tombol Generate Kode Otomatis),Nama, Tipe, Satuan (KG, Ekor, Pack, Karung).
+    - [x] Jenis Produk: Persediaan, Jasa, Non-Persediaan.
     - [ ] Import data products.csv untuk modul Produk.
         - [ ] Sesuaikan kode produk menjadi unik dengan format P-XXXX.
         - [ ] Sesuaikan kategori produk yang ada di products.csv dengan data dari master product categories.
         - [ ] Sesuaikan satuan produk yang ada di products.csv dengan data dari master units.
+        - Catatan berikutnya:
+            - [x] Bangun workflow import dari products.csv dengan mapping kategori & satuan serta validasi format P-XXXX.
+            - [ ] Tuntaskan smoke test activity log sebelum menutup checklist ini.
 - [x] **Master COA (Chart of Accounts):** Struktur Parent-Child & Saldo Awal.
     - [x] Buat fitur Import coa.csv
 - [ ] **Master Supplier Categories:** CRUD kategori supplier.

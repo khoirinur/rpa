@@ -35,14 +35,14 @@ class ProductsTable
                     ->label('Jenis')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => Product::typeOptions()[$state] ?? 'Tidak Ditandai'),
-                TextColumn::make('unit')
+                TextColumn::make('unit.name')
                     ->label('Satuan')
                     ->badge()
-                    ->formatStateUsing(fn (?string $state): string => Product::unitOptions()[$state] ?? strtoupper((string) $state)),
-                TextColumn::make('category')
+                    ->placeholder('Belum diatur'),
+                TextColumn::make('productCategory.name')
                     ->label('Kategori')
                     ->badge()
-                    ->formatStateUsing(fn (?string $state): string => Product::categoryOptions()[$state] ?? 'Tidak Ditandai'),
+                    ->placeholder('Belum diatur'),
                 TextColumn::make('defaultWarehouse.name')
                     ->label('Gudang Default')
                     ->placeholder('Belum diatur')
@@ -57,12 +57,16 @@ class ProductsTable
             ])
             ->defaultSort('name')
             ->filters([
-                SelectFilter::make('category')
+                SelectFilter::make('product_category_id')
                     ->label('Kategori')
-                    ->options(Product::categoryOptions()),
-                SelectFilter::make('unit')
+                    ->relationship('productCategory', 'name')
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('unit_id')
                     ->label('Satuan')
-                    ->options(Product::unitOptions()),
+                    ->relationship('unit', 'name')
+                    ->searchable()
+                    ->preload(),
                 SelectFilter::make('type')
                     ->label('Jenis Produk')
                     ->options(Product::typeOptions()),

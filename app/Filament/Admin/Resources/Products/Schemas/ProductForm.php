@@ -9,10 +9,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Str;
 
 class ProductForm
 {
@@ -28,19 +26,13 @@ class ProductForm
                             ->maxLength(20)
                             ->alphaDash()
                             ->unique(ignoreRecord: true)
-                            ->helperText('Gunakan kode unik seperti KRKS, CKR, JLMT.')
+                            ->helperText('Kode mengikuti format P-XXXX dan harus unik.')
                             ->suffixAction(
                                 Action::make('generate_code')
                                     ->label('Generate')
                                     ->icon('heroicon-m-sparkles')
-                                    ->action(function (Set $set, Get $get): void {
-                                        $prefix = Str::of($get('name') ?? 'PRD')
-                                            ->upper()
-                                            ->replaceMatches('/[^A-Z0-9]/', '')
-                                            ->substr(0, 4)
-                                            ->whenEmpty(fn () => 'PRD');
-
-                                        $set('code', sprintf('%s-%04d', $prefix, random_int(1, 9999)));
+                                    ->action(function (Set $set): void {
+                                        $set('code', sprintf('P-%04d', random_int(1, 9999)));
                                     }),
                             ),
                         TextInput::make('name')
@@ -54,19 +46,21 @@ class ProductForm
                             ->default('persediaan')
                             ->native(false)
                             ->helperText('Gunakan jenis Persediaan/Jasa/Non-Persediaan sesuai kebutuhan akuntansi.'),
-                        Select::make('unit')
+                        Select::make('unit_id')
                             ->label('Satuan')
-                            ->options(fn () => Product::unitOptions())
-                            ->required()
+                            ->relationship('unit', 'name')
                             ->searchable()
+                            ->preload()
                             ->native(false)
-                            ->helperText('Data dropdown diambil dari Master Satuan (multi-gudang).'),
-                        Select::make('category')
+                            ->helperText('Opsional — gunakan jika produk memiliki satuan baku dari Master Units.'),
+                        Select::make('product_category_id')
                             ->label('Kategori Produk')
-                            ->options(Product::categoryOptions())
-                            ->required()
+                            ->relationship('productCategory', 'name')
+                            ->searchable()
+                            ->preload()
                             ->native(false)
-                            ->helperText('Hasil Panen, Live Bird, Produk, atau Umum.'),
+                            ->required()
+                            ->helperText('Data diambil dari Master Kategori Produk.'),
                     ])
                     ->columns(2),
                 Section::make('Gudang & Status')

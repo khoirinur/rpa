@@ -14,11 +14,16 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('code', 20)->unique();
-            $table->string('name');
-            $table->string('slug')->unique();
-            $table->string('type')->nullable();
-            $table->string('unit', 10);
-            $table->string('category', 20);
+            $table->string('name', 150);
+            $table->enum('type', ['persediaan', 'jasa', 'non_persediaan'])->default('persediaan');
+            $table->foreignId('product_category_id')
+                ->nullable()
+                ->constrained('product_categories')
+                ->nullOnDelete();
+            $table->foreignId('unit_id')
+                ->nullable()
+                ->constrained('units')
+                ->nullOnDelete();
             $table->foreignId('default_warehouse_id')
                 ->nullable()
                 ->constrained('warehouses')
