@@ -28,18 +28,18 @@ Status Legend:
 - [-] **Master Products:**
     - [x] Field: Kode (Terdapat Tombol Generate Kode Otomatis),Nama, Tipe, Satuan (KG, Ekor, Pack, Karung).
     - [x] Jenis Produk: Persediaan, Jasa, Non-Persediaan.
-    - [ ] Import data products.csv untuk modul Produk.
-        - [ ] Sesuaikan kode produk menjadi unik dengan format P-XXXX.
-        - [ ] Sesuaikan kategori produk yang ada di products.csv dengan data dari master product categories.
-        - [ ] Sesuaikan satuan produk yang ada di products.csv dengan data dari master units.
+    - [x] Import data products.csv untuk modul Produk.
+        - [x] Sesuaikan kode produk menjadi unik dengan format P-XXXX.
+        - [x] Sesuaikan kategori produk yang ada di products.csv dengan data dari master product categories.
+        - [x] Sesuaikan satuan produk yang ada di products.csv dengan data dari master units.
         - Catatan berikutnya:
             - [x] Bangun workflow import dari products.csv dengan mapping kategori & satuan serta validasi format P-XXXX.
             - [ ] Tuntaskan smoke test activity log sebelum menutup checklist ini.
 - [x] **Master COA (Chart of Accounts):** Struktur Parent-Child & Saldo Awal.
     - [x] Buat fitur Import coa.csv
-- [ ] **Master Supplier Categories:** CRUD kategori supplier.
-    - [ ] Field: Kode Kategori, Nama Kategori.
-    - [ ] Seeder default kategori: Umum, Bahan Baku, Perlengkapan, Jasa.
+- [x] **Master Supplier Categories:** CRUD kategori supplier.
+    - [x] Field: Kode Kategori, Nama Kategori.
+    - [x] Seeder default kategori: Umum, Bahan Baku, Perlengkapan, Jasa.
 - [ ] **Master Suppliers:** CRUD supplier lengkap dengan info kontak dan bank.
     - [ ] Field: Kode Pemasok, NPWP, Tipe, Nama Supplier, Nama Pemilik, Nomor Kontak, Atas Nama, Nama Bank, Nomor Rekening, Alamat.
     - [ ] Import data supplier.csv untuk modul Supplier.
