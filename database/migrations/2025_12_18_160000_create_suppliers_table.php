@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->string('code', 20)->unique();
             $table->string('name', 150);
-            $table->string('type', 30)->nullable();
             $table->string('npwp', 30)->nullable();
             $table->foreignId('supplier_category_id')
                 ->nullable()
@@ -26,7 +25,7 @@ return new class extends Migration
                 ->constrained('warehouses')
                 ->nullOnDelete();
             $table->string('owner_name', 120)->nullable();
-            $table->string('contact_phone', 40)->nullable();
+            $table->text('contact_phone')->nullable();
             $table->string('contact_email')->nullable();
             $table->string('bank_account_name', 120)->nullable();
             $table->string('bank_name', 80)->nullable();

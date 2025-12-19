@@ -40,8 +40,8 @@ Status Legend:
 - [x] **Master Supplier Categories:** CRUD kategori supplier.
     - [x] Field: Kode Kategori, Nama Kategori.
     - [x] Seeder default kategori: Umum, Bahan Baku, Perlengkapan, Jasa.
-- [ ] **Master Suppliers:** CRUD supplier lengkap dengan info kontak dan bank.
-    - [ ] Field: Kode Pemasok, NPWP, Tipe, Nama Supplier, Nama Pemilik, Nomor Kontak, Atas Nama, Nama Bank, Nomor Rekening, Alamat.
+- [-] **Master Suppliers:** CRUD supplier lengkap dengan info kontak dan bank.
+    - [x] Field: Kode Pemasok, NPWP, Tipe, Nama Supplier, Nama Pemilik, Nomor Kontak, Atas Nama, Nama Bank, Nomor Rekening, Alamat.
     - [ ] Import data supplier.csv untuk modul Supplier.
         - [ ] Sesuaikan kode supplier menjadi unik dengan format S-XXXX.
         - [ ] Sesuaikan tipe supplier yang ada di supplier.csv dengan data dari master supplier categories.
