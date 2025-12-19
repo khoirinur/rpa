@@ -41,18 +41,21 @@ Status Legend:
     - [x] Field: Kode Kategori, Nama Kategori.
     - [x] Seeder default kategori: Umum, Bahan Baku, Perlengkapan, Jasa.
 - [-] **Master Suppliers:** CRUD supplier lengkap dengan info kontak dan bank.
-    - [x] Field: Kode Pemasok, NPWP, Tipe, Nama Supplier, Nama Pemilik, Nomor Kontak, Atas Nama, Nama Bank, Nomor Rekening, Alamat.
+    - [x] Field: Kode Pemasok, NPWP, Tipe, Nama Supplier, Nama Pemilik, Nomor Kontak (Bisa lebih dari 1), Atas Nama, Nama Bank, Nomor Rekening, Alamat.
     - [ ] Import data supplier.csv untuk modul Supplier.
         - [ ] Sesuaikan kode supplier menjadi unik dengan format S-XXXX.
         - [ ] Sesuaikan tipe supplier yang ada di supplier.csv dengan data dari master supplier categories.
-- [ ] **Master Customers Categories:** CRUD kategori customer.
-    - [ ] Field: Kode Kategori, Nama Kategori.
-    - [ ] Seeder default kategori: Customer Lama, Customer Baru, Retail, MBG, Partai.
-- [ ] **Master Customers:** CRUD customer lengkap dengan info kontak dan bank.
-    - [ ] Field: Kode Customer, Nama Customer, Nomor Telepon, Alamat, Tipe.
-    - [ ] Import data customer.csv untuk modul Customer.
-        - [ ] Sesuaikan kode customer menjadi unik dengan format C-XXXX.
-        - [ ] Sesuaikan tipe customer yang ada di customer.csv dengan data dari master customer categories.
+- [x] **Master Customers Categories:** CRUD kategori customer.
+    - [x] Field: Kode Kategori, Nama Kategori.
+    - [x] Seeder default kategori: Customer Lama, Customer Baru, Retail, MBG, Partai.
+- [-] **Master Customers:** CRUD customer lengkap dengan info kontak dan bank.
+    - [x] Field: Kode Customer, Nama Customer, Nomor Telepon (Bisa lebih dari 1), Alamat.
+    - [x] Import data customer.csv untuk modul Customer.
+        - [x] Sesuaikan kode customer menjadi unik dengan format C-XXXX.
+        - [x] Sesuaikan tipe customer yang ada di customer.csv dengan data dari master customer categories.
+        - Catatan berikutnya:
+            - [x] Rancang workflow import: baca CSV, normalisasi kode C-XXXX, mapping kategori & tipe, serta dukung banyak nomor telepon seperti modul Supplier.
+            - [x] Tambahkan sample customer melalui seeder untuk validasi activity log & Shield.
 
 ## Phase 2: Purchasing & Inbound (Hulu)
 - [ ] **Pembelian Ayam Hidup:**
