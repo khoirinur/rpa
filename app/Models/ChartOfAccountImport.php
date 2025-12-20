@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Models\ChartOfAccount;
 use App\Models\User;
-use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -30,7 +29,6 @@ class ChartOfAccountImport extends Model
         'total_rows',
         'imported_rows',
         'failed_rows',
-        'default_warehouse_id',
         'created_by',
         'started_at',
         'finished_at',
@@ -51,11 +49,6 @@ class ChartOfAccountImport extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function defaultWarehouse()
-    {
-        return $this->belongsTo(Warehouse::class, 'default_warehouse_id');
     }
 
     public function process(): void
@@ -175,7 +168,6 @@ class ChartOfAccountImport extends Model
     protected function upsertAccount(array $row, array $parentCodes): void
     {
         $type = $this->resolveType($row['type_label']);
-        $normalBalance = in_array($type, ['asset', 'expense'], true) ? 'debit' : 'credit';
 
         $parentId = null;
 
@@ -194,12 +186,10 @@ class ChartOfAccountImport extends Model
             [
                 'name' => $row['name'],
                 'type' => $type,
-                'normal_balance' => $normalBalance,
                 'parent_id' => $parentId,
                 'is_summary' => in_array($row['code'], $parentCodes, true),
                 'is_active' => true,
                 'opening_balance' => 0,
-                'default_warehouse_id' => $this->default_warehouse_id,
                 'description' => $row['type_label'],
             ],
         );
@@ -207,14 +197,19 @@ class ChartOfAccountImport extends Model
 
     protected function resolveType(string $label): string
     {
-        $label = Str::lower($label);
+        $options = ChartOfAccount::typeOptions();
+        $normalized = Str::lower(Str::squish($label));
 
-        return match (true) {
-            Str::contains($label, ['modal', 'equitas', 'ekuitas']) => 'equity',
-            Str::contains($label, ['utang', 'hutang', 'liabilitas', 'pinjaman']) => 'liability',
-            Str::contains($label, ['pendapatan', 'laba', 'penghasilan']) => 'revenue',
-            Str::contains($label, ['beban', 'hpp', 'rugi']) => 'expense',
-            default => 'asset',
-        };
+        foreach ($options as $key => $name) {
+            if (Str::lower(Str::squish($name)) === $normalized) {
+                return $key;
+            }
+        }
+
+        throw new RuntimeException(sprintf(
+            'Tipe akun "%s" tidak dikenali. Gunakan salah satu tipe yang tersedia pada template (contoh: %s).',
+            $label,
+            implode(', ', array_values($options)),
+        ));
     }
 }

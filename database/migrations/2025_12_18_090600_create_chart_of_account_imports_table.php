@@ -20,10 +20,6 @@ return new class extends Migration
             $table->unsignedInteger('total_rows')->default(0);
             $table->unsignedInteger('imported_rows')->default(0);
             $table->unsignedInteger('failed_rows')->default(0);
-            $table->foreignId('default_warehouse_id')
-                ->nullable()
-                ->constrained('warehouses')
-                ->nullOnDelete();
             $table->foreignId('created_by')
                 ->nullable()
                 ->constrained('users')

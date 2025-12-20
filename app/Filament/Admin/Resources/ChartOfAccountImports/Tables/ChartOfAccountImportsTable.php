@@ -48,10 +48,6 @@ class ChartOfAccountImportsTable
                 TextColumn::make('failed_rows')
                     ->label('Gagal')
                     ->sortable(),
-                TextColumn::make('defaultWarehouse.name')
-                    ->label('Gudang Default')
-                    ->placeholder('—')
-                    ->toggleable(),
                 TextColumn::make('creator.name')
                     ->label('Dibuat Oleh')
                     ->placeholder('System')

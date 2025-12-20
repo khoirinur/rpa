@@ -3,7 +3,6 @@
 namespace App\Filament\Admin\Resources\ChartOfAccountImports\Schemas;
 
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -35,14 +34,6 @@ class ChartOfAccountImportForm
                             ->downloadable()
                             ->dehydrated(fn ($state, ?string $operation): bool => $operation === 'create')
                             ->disabledOn('edit'),
-                        Select::make('default_warehouse_id')
-                            ->label('Gudang Default')
-                            ->relationship('defaultWarehouse', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->helperText('Opsional: tentukan gudang default untuk akun persediaan terkait.')
-                            ->nullable(),
                     ])
                     ->columns(2),
                 Section::make('Ringkasan Proses')

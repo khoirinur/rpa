@@ -110,6 +110,7 @@ class DatabaseSeeder extends Seeder
             UnitSeeder::class,
             ProductCategorySeeder::class,
             SupplierCategorySeeder::class,
+            AccountTypeSeeder::class,
             CustomerCategorySeeder::class,
             CustomerSeeder::class,
             ProductSeeder::class,

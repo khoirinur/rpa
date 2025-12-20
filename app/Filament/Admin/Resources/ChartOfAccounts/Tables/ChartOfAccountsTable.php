@@ -28,21 +28,15 @@ class ChartOfAccountsTable
                     ->searchable(),
                 TextColumn::make('name')
                     ->label('Nama Akun')
+                    ->state(fn (ChartOfAccount $record): string => str_repeat('- &nbsp;&nbsp;', max(($record->level ?? 1) - 1, 0)) . $record->name)
                     ->description(fn (ChartOfAccount $record): ?string => $record->parent?->name)
+                    ->html()
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('type')
                     ->label('Tipe')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => ChartOfAccount::typeOptions()[$state] ?? 'Tidak Ditandai'),
-                TextColumn::make('normal_balance')
-                    ->label('Saldo Normal')
-                    ->badge()
-                    ->formatStateUsing(fn (?string $state): string => ChartOfAccount::normalBalanceOptions()[$state] ?? '—'),
-                TextColumn::make('defaultWarehouse.name')
-                    ->label('Gudang Default')
-                    ->placeholder('—')
-                    ->toggleable(),
                 TextColumn::make('opening_balance')
                     ->label('Saldo Awal')
                     ->alignRight()
@@ -63,9 +57,6 @@ class ChartOfAccountsTable
                 SelectFilter::make('type')
                     ->label('Tipe Akun')
                     ->options(ChartOfAccount::typeOptions()),
-                SelectFilter::make('normal_balance')
-                    ->label('Saldo Normal')
-                    ->options(ChartOfAccount::normalBalanceOptions()),
                 TernaryFilter::make('is_active')
                     ->label('Status Aktif')
                     ->placeholder('Semua'),

@@ -2,6 +2,7 @@
 
 Status Legend:
 - [x] = Selesai
+- [-] = Sedang Dikerjakan
 - [ ] = Belum Dikerjakan
 
 ## Phase 1: Foundation & Master Data
@@ -36,6 +37,24 @@ Status Legend:
             - [ ] Tuntaskan smoke test activity log sebelum menutup checklist ini.
 - [x] **Master COA (Chart of Accounts):** Struktur Parent-Child & Saldo Awal.
     - [x] Buat fitur Import coa.csv
+    - [x] Tipe Akun: Akumulasi Penyusutan, Aset Lainnya, Aset Lancar Lainnya, Aset Tetap, Beban, Beban Lainnya, Beban Pokok Penjualan, Kas & Bank, Liabilitas Jangka Panjang, Liabilitas Jangka Pendek, Modal, Pendapatan, Pendapatan Lainnya, Persediaan, Piutang Usaha, Utang Usaha. 
+    - [x] Tipe Akun:
+        - Akumulasi Penyusutan
+        - Aset Lainnya
+        - Aset Lancar Lainnya
+        - Aset Tetap
+        - Beban
+        - Beban Lainnya
+        - Beban Pokok Penjualan
+        - Kas & Bank
+        - Liabilitas Jangka Panjang
+        - Liabilitas Jangka Pendek
+        - Modal
+        - Pendapatan
+        - Pendapatan Lainnya
+        - Persediaan
+        - Piutang Usaha
+        - Utang Usaha
 - [x] **Master Supplier Categories:** CRUD kategori supplier.
     - [x] Field: Kode Kategori, Nama Kategori.
     - [x] Seeder default kategori: Umum, Bahan Baku, Perlengkapan, Jasa.

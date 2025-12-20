@@ -34,31 +34,18 @@ class ChartOfAccountForm
                             ->options(ChartOfAccount::typeOptions())
                             ->required()
                             ->native(false),
-                        Select::make('normal_balance')
-                            ->label('Saldo Normal')
-                            ->options(ChartOfAccount::normalBalanceOptions())
-                            ->required()
-                            ->native(false)
-                            ->helperText('Pastikan sesuai standar akuntansi untuk laporan HPP.'),
                     ])
                     ->columns(2),
-                Section::make('Struktur & Gudang')
+                Section::make('Struktur Akun')
                     ->schema([
                         Select::make('parent_id')
                             ->label('Akun Induk')
                             ->relationship('parent', 'name', fn ($query) => $query->where('is_summary', true)->orderBy('code'))
+                            ->getOptionLabelFromRecordUsing(fn (ChartOfAccount $record): string => str_repeat('- ', max((($record->level ?? 1) - 1), 0)) . $record->name)
                             ->searchable()
                             ->preload()
                             ->native(false)
                             ->helperText('Gunakan akun induk bertipe summary agar struktur parent-child rapi.')
-                            ->nullable(),
-                        Select::make('default_warehouse_id')
-                            ->label('Gudang Default')
-                            ->relationship('defaultWarehouse', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->helperText('Pastikan multi-gudang tercatat pada akun biaya/pendapatan yang relevan.')
                             ->nullable(),
                         Toggle::make('is_summary')
                             ->label('Hanya Ringkasan (Tidak Bisa Posting)')

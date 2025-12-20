@@ -11,19 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('chart_of_accounts', function (Blueprint $table) {
+        Schema::create('account_types', function (Blueprint $table) {
             $table->id();
-            $table->string('code', 20)->unique();
-            $table->string('name');
-            $table->string('type', 40);
-            $table->foreignId('parent_id')
+            $table->string('code', 40)->unique();
+            $table->string('name', 150);
+            $table->string('category', 30)->index();
+            $table->foreignId('default_warehouse_id')
                 ->nullable()
-                ->constrained('chart_of_accounts')
+                ->constrained('warehouses')
                 ->nullOnDelete();
-            $table->unsignedTinyInteger('level')->default(1);
-            $table->boolean('is_summary')->default(false);
             $table->boolean('is_active')->default(true);
-            $table->decimal('opening_balance', 18, 2)->default(0);
             $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -35,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('chart_of_accounts');
+        Schema::dropIfExists('account_types');
     }
 };

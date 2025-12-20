@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Models;
-
-use App\Models\Warehouse;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,29 +11,33 @@ class ChartOfAccount extends Model
     use HasFactory, SoftDeletes, LogsActivity;
 
     public const TYPE_OPTIONS = [
-        'asset' => 'Aset',
-        'liability' => 'Liabilitas',
-        'equity' => 'Ekuitas',
-        'revenue' => 'Pendapatan',
-        'expense' => 'Biaya',
-    ];
-
-    public const NORMAL_BALANCE_OPTIONS = [
-        'debit' => 'Debit',
-        'credit' => 'Kredit',
+        'akumulasi_penyusutan' => 'Akumulasi Penyusutan',
+        'aset_lainnya' => 'Aset Lainnya',
+        'aset_lancar_lainnya' => 'Aset Lancar Lainnya',
+        'aset_tetap' => 'Aset Tetap',
+        'beban' => 'Beban',
+        'beban_lainnya' => 'Beban Lainnya',
+        'beban_pokok_penjualan' => 'Beban Pokok Penjualan',
+        'kas_bank' => 'Kas & Bank',
+        'liabilitas_jangka_panjang' => 'Liabilitas Jangka Panjang',
+        'liabilitas_jangka_pendek' => 'Liabilitas Jangka Pendek',
+        'modal' => 'Modal',
+        'pendapatan' => 'Pendapatan',
+        'pendapatan_lainnya' => 'Pendapatan Lainnya',
+        'persediaan' => 'Persediaan',
+        'piutang_usaha' => 'Piutang Usaha',
+        'utang_usaha' => 'Utang Usaha',
     ];
 
     protected $fillable = [
         'code',
         'name',
         'type',
-        'normal_balance',
         'parent_id',
         'level',
         'is_summary',
         'is_active',
         'opening_balance',
-        'default_warehouse_id',
         'description',
     ];
 
@@ -71,11 +73,6 @@ class ChartOfAccount extends Model
         return $this->hasMany(self::class, 'parent_id');
     }
 
-    public function defaultWarehouse()
-    {
-        return $this->belongsTo(Warehouse::class, 'default_warehouse_id');
-    }
-
     public function scopeSummary($query)
     {
         return $query->where('is_summary', true);
@@ -84,10 +81,5 @@ class ChartOfAccount extends Model
     public static function typeOptions(): array
     {
         return self::TYPE_OPTIONS;
-    }
-
-    public static function normalBalanceOptions(): array
-    {
-        return self::NORMAL_BALANCE_OPTIONS;
     }
 }

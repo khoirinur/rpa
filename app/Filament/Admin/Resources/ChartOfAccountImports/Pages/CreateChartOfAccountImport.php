@@ -19,7 +19,6 @@ class CreateChartOfAccountImport extends CreateRecord
             'file_name' => $data['file_name'] ?? 'coa-import.csv',
             'file_path' => $data['file_path'] ?? null,
             'file_disk' => 'public',
-            'default_warehouse_id' => $data['default_warehouse_id'] ?? null,
             'created_by' => auth()->id(),
         ]);
 
