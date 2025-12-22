@@ -19,9 +19,9 @@ class UserRoleSeeder extends Seeder
 
         $users = [
             [
-                'name' => 'Super Admin',
-                'email' => 'superadmin@rpa.test',
-                'role' => 'super_admin',
+                'name' => 'Owner Surya Kencana',
+                'email' => 'owner@rpa.test',
+                'role' => 'owner',
             ],
             [
                 'name' => 'Admin Gudang',

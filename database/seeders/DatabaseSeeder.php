@@ -22,11 +22,11 @@ class DatabaseSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $superAdminEmail = env('SUPER_ADMIN_EMAIL', 'owner@example.com');
-        $superAdminName = env('SUPER_ADMIN_NAME', 'Owner Surya Kencana');
-        $superAdminPassword = env('SUPER_ADMIN_PASSWORD', 'owner12345');
+        $superAdminEmail = env('SUPER_ADMIN_EMAIL', 'superadmin@rpa.test');
+        $superAdminName = env('SUPER_ADMIN_NAME', 'Super Admin');
+        $superAdminPassword = env('SUPER_ADMIN_PASSWORD', 'superadmin12345');
 
-        $ownerUser = User::firstOrCreate(
+        $superadminUser = User::firstOrCreate(
             ['email' => $superAdminEmail],
             [
                 'name' => $superAdminName,
@@ -36,13 +36,13 @@ class DatabaseSeeder extends Seeder
 
         $guardName = config('auth.defaults.guard', 'web');
 
-        $ownerRole = Role::firstOrCreate([
-            'name' => 'owner',
+        $superAdminRole = Role::firstOrCreate([
+            'name' => 'super_admin',
             'guard_name' => $guardName,
         ]);
 
-        if (! $ownerUser->hasRole($ownerRole->name)) {
-            $ownerUser->assignRole($ownerRole);
+        if (! $superadminUser->hasRole($superAdminRole->name)) {
+            $superadminUser->assignRole($superAdminRole);
         }
 
         $roleManagementPermissions = [
@@ -59,7 +59,7 @@ class DatabaseSeeder extends Seeder
             'Reorder:Role',
         ];
 
-        $ownerRole->revokePermissionTo($roleManagementPermissions);
+        $superAdminRole->revokePermissionTo($roleManagementPermissions);
 
         $warehouses = [
             [
@@ -110,7 +110,6 @@ class DatabaseSeeder extends Seeder
             UnitSeeder::class,
             ProductCategorySeeder::class,
             SupplierCategorySeeder::class,
-            AccountTypeSeeder::class,
             CustomerCategorySeeder::class,
             CustomerSeeder::class,
             ProductSeeder::class,
