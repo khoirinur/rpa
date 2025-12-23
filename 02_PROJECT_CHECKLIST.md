@@ -77,6 +77,8 @@ Status Legend:
             - [x] Rancang workflow import: baca CSV, normalisasi kode C-XXXX, mapping kategori & tipe, serta dukung banyak nomor telepon seperti modul Supplier.
             - [x] Tambahkan sample customer melalui seeder untuk validasi activity log & Shield.
 
+- [x] **Super Admin Access:** Pastikan peran `super_admin` memiliki akses penuh dan menu Filament Shield terlihat.
+
 ## Phase 2: Purchasing & Inbound (Hulu)
 - [ ] **Pembelian Ayam Hidup:**
     - [ ] **Header Form**

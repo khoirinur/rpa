@@ -114,6 +114,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             ProductSeeder::class,
             UserRoleSeeder::class,
+            LiveChickenPurchaseOrderPermissionSeeder::class,
         ]);
     }
 }
