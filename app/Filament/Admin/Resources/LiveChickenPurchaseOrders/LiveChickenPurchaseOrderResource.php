@@ -15,6 +15,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
 
 class LiveChickenPurchaseOrderResource extends Resource
 {
@@ -56,5 +57,54 @@ class LiveChickenPurchaseOrderResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    public static function hydrateLineItemsFromMetadata(array $data): array
+    {
+        $metadata = $data['metadata'] ?? [];
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
+        $lineItems = data_get($metadata, 'line_items', []);
+
+        if (! is_array($lineItems)) {
+            $lineItems = [];
+        }
+
+        $lineItemsState = [];
+
+        foreach ($lineItems as $item) {
+            $lineItemsState[(string) Str::uuid()] = $item;
+        }
+
+        $data['line_items'] = $lineItemsState;
+
+        return $data;
+    }
+
+    public static function persistLineItemsIntoMetadata(array $data): array
+    {
+        $lineItemsState = $data['line_items'] ?? [];
+
+        if (! is_array($lineItemsState)) {
+            $lineItemsState = [];
+        }
+
+        $lineItems = array_values($lineItemsState);
+        unset($data['line_items']);
+
+        $metadata = $data['metadata'] ?? [];
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
+        $metadata['line_items'] = $lineItems;
+
+        $data['metadata'] = empty($metadata) ? null : $metadata;
+
+        return $data;
     }
 }

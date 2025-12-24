@@ -20,4 +20,14 @@ class EditLiveChickenPurchaseOrder extends EditRecord
             RestoreAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        return LiveChickenPurchaseOrderResource::hydrateLineItemsFromMetadata($data);
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return LiveChickenPurchaseOrderResource::persistLineItemsIntoMetadata($data);
+    }
 }

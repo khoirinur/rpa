@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\LiveChickenPurchaseOrders\Schemas;
 
 use App\Models\LiveChickenPurchaseOrder;
 use App\Models\Product;
+use App\Models\Supplier;
 use Closure;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
@@ -15,6 +16,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Utilities\Get as SchemaGet;
 use Filament\Schemas\Components\Utilities\Set as SchemaSet;
 use Filament\Schemas\Components\Section;
@@ -22,12 +24,15 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Support\RawJs;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 
 class LiveChickenPurchaseOrderForm
 {
     protected static array $productNameCache = [];
     protected static ?array $liveBirdOptionCache = null;
+    protected static array $supplierAddressCache = [];
+    protected static array $supplierDefaultWarehouseCache = [];
 
     protected static function defaultLineItemState(): array
     {
@@ -85,16 +90,34 @@ class LiveChickenPurchaseOrderForm
                         Select::make('supplier_id')
                             ->label('Supplier')
                             ->relationship('supplier', 'name')
-                            ->preload()
                             ->searchable()
                             ->required()
                             ->native(false)
-                            ->live(),
+                            ->live()
+                            ->afterStateUpdated(function (?int $state, SchemaSet $set): void {
+                                if (! $state) {
+                                    return;
+                                }
+
+                                if (! array_key_exists($state, self::$supplierAddressCache)) {
+                                    $supplier = Supplier::query()
+                                        ->whereKey($state)
+                                        ->first(['id', 'address_line', 'default_warehouse_id']);
+
+                                    self::$supplierAddressCache[$state] = $supplier?->address_line ?? '';
+                                    self::$supplierDefaultWarehouseCache[$state] = $supplier?->default_warehouse_id ?? null;
+                                }
+
+                                $set('shipping_address', self::$supplierAddressCache[$state]);
+                                $set('destination_warehouse_id', self::$supplierDefaultWarehouseCache[$state]);
+                            }),
                         Textarea::make('shipping_address')
                             ->label('Alamat Kirim')
                             ->rows(2)
-                            ->helperText('Jika dikosongkan akan mengikuti alamat supplier.')
-                            ->columnSpanFull(),
+                            ->required(),
+                        Textarea::make('notes')
+                            ->label('Keterangan (Opsional)')
+                            ->rows(2),
                         DatePicker::make('order_date')
                             ->label('Tanggal PO')
                             ->default(today())
@@ -106,7 +129,6 @@ class LiveChickenPurchaseOrderForm
                             ->label('Gudang Tujuan')
                             ->relationship('destinationWarehouse', 'name')
                             ->required()
-                            ->preload()
                             ->searchable()
                             ->native(false),
                         Select::make('status')
@@ -116,7 +138,7 @@ class LiveChickenPurchaseOrderForm
                             ->native(false)
                             ->required(),
             ])
-            ->columns(2)
+            ->columns(4)
             ->columnSpanFull();
 
         $paymentSection = Section::make('Pembayaran & Pajak')
@@ -156,11 +178,10 @@ class LiveChickenPurchaseOrderForm
                             ->minValue(0)
                             ->prefix('Rp'),
             ])
-            ->columns(2)
+            ->columns(4)
             ->columnSpanFull();
 
         $lineItemsSection = Section::make('Rincian Barang')
-            ->description('Gunakan tombol tambah untuk memilih barang, lalu lengkapi detail qty, harga, diskon, pajak, dan catatan di bawah ini.')
             ->schema([
                         Select::make('line_item_search')
                             ->label('Cari & Tambah Barang')
@@ -188,7 +209,7 @@ class LiveChickenPurchaseOrderForm
                             ->visible(fn (SchemaGet $get): bool => blank($get('supplier_id')))
                             ->columnSpanFull()
                             ->extraAttributes(['class' => 'text-sm font-medium text-danger-600']),
-                        Repeater::make('metadata.line_items')
+                        Repeater::make('line_items')
                             ->label('Daftar Item (Editable)')
                             ->schema(self::lineItemFields())
                             ->default([])
@@ -204,15 +225,14 @@ class LiveChickenPurchaseOrderForm
 
         $summarySection = Section::make('Ringkasan Kuantitas & Catatan')
             ->schema([
-                        TextInput::make('total_quantity_ea')
+                        TextEntry::make('total_quantity_ea')
                             ->label('Total Ekor')
-                            ->numeric()
-                            ->minValue(0),
-                        TextInput::make('total_weight_kg')
+                            ->state(fn (SchemaGet $get): string => (string) collect($get('line_items') ?? [])
+                                ->sum(fn (array $item): float => (float) ($item['unit'] === 'ekor' ? $item['quantity'] ?? 0 : 0))),
+                        TextEntry::make('total_weight_kg')
                             ->label('Total Berat (Kg)')
-                            ->numeric()
-                            ->minValue(0)
-                            ->suffix('Kg'),
+                            ->state(fn (SchemaGet $get): string => (string) collect($get('line_items') ?? [])
+                                ->sum(fn (array $item): float => (float) ($item['unit'] === 'kg' ? $item['quantity'] ?? 0 : 0))),
                         TextInput::make('subtotal')
                             ->label('Subtotal')
                             ->numeric()
@@ -229,12 +249,9 @@ class LiveChickenPurchaseOrderForm
                             ->label('Total Akhir')
                             ->numeric()
                             ->prefix('Rp'),
-                        Textarea::make('notes')
-                            ->label('Keterangan')
-                            ->rows(3)
-                            ->columnSpanFull(),
+                        
                         ])
-                        ->columns(2)
+                        ->columns(3)
                         ->columnSpanFull();
 
         return $schema
@@ -264,7 +281,7 @@ class LiveChickenPurchaseOrderForm
                 ->label('Nama Barang')
                 ->required()
                 ->maxLength(120)
-                ->columnSpan(4),
+                ->columnSpan(5),
             TextInput::make('item_code')
                 ->label('Kode #')
                 ->maxLength(30)
@@ -286,7 +303,7 @@ class LiveChickenPurchaseOrderForm
                 ])
                 ->required()
                 ->native(false)
-                ->columnSpan(2),
+                ->columnSpan(3),
             TextInput::make('unit_price')
                 ->label('@Harga')
                 ->numeric()
@@ -297,11 +314,7 @@ class LiveChickenPurchaseOrderForm
                 ->mask(RawJs::make('$money($input, ",", ".", 0)'))
                 ->stripCharacters(['.', ','])
                 ->live()
-                ->columnSpan(2),
-            Placeholder::make('computed_total')
-                ->label('Total Harga')
-                ->content(fn (SchemaGet $get): string => self::formatCurrency(self::calculateLineTotal($get)))
-                ->columnSpan(2),
+                ->columnSpan(3),
             ToggleButtons::make('discount_type')
                 ->label('Tipe Diskon')
                 ->options(LiveChickenPurchaseOrder::discountTypeOptions())
@@ -309,7 +322,7 @@ class LiveChickenPurchaseOrderForm
                 ->inline()
                 ->grouped()
                 ->live()
-                ->columnSpan(3),
+                ->columnSpan(2),
             TextInput::make('discount_value')
                 ->label('Nilai Diskon')
                 ->numeric()
@@ -329,10 +342,14 @@ class LiveChickenPurchaseOrderForm
                 })
                 ->helperText(fn (SchemaGet $get): string => $get('discount_type') === LiveChickenPurchaseOrder::DISCOUNT_TYPE_PERCENTAGE ? 'Maksimal 100%.' : 'Tidak boleh melebihi harga total.')
                 ->live()
-                ->columnSpan(3),
+                ->columnSpan(2),
             Checkbox::make('apply_tax')
                 ->label('PPN 11%')
                 ->default(true)
+                ->columnSpan(2),
+            Placeholder::make('computed_total')
+                ->label('Total Harga')
+                ->content(fn (SchemaGet $get): string => self::formatCurrency(self::calculateLineTotal($get)))
                 ->columnSpan(2),
             Textarea::make('notes')
                 ->label('Catatan Item')
@@ -343,10 +360,17 @@ class LiveChickenPurchaseOrderForm
 
     protected static function appendLineItem(array $data, SchemaSet $set, SchemaGet $get): void
     {
-        $items = $get('metadata.line_items') ?? [];
-        $items[] = self::prepareLineItemPayload($data);
+        $items = $get('line_items');
 
-        $set('metadata.line_items', $items);
+        if (! is_array($items)) {
+            $items = [];
+        }
+
+        $itemKey = (string) Str::uuid();
+
+        $items[$itemKey] = self::prepareLineItemPayload($data);
+
+        $set('line_items', $items);
     }
 
     protected static function appendLineItemFromProduct(int $productId, SchemaSet $set, SchemaGet $get): void
