@@ -6,11 +6,13 @@ use App\Models\LiveChickenPurchaseOrder;
 use App\Models\Product;
 use App\Models\Supplier;
 use Closure;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -166,7 +168,10 @@ class LiveChickenPurchaseOrderForm
                             ->options($taxRateOptions)
                             ->default('11.00')
                             ->native(false)
-                            ->required(),
+                            ->required()
+                               ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
+                                   self::syncLineItemSummaries($set, $get, $get('line_items') ?? []);
+                               }),
                         Select::make('global_discount_type')
                             ->label('Tipe Diskon Global')
                             ->options(LiveChickenPurchaseOrder::discountTypeOptions())
@@ -210,44 +215,61 @@ class LiveChickenPurchaseOrderForm
                             ->columnSpanFull()
                             ->extraAttributes(['class' => 'text-sm font-medium text-danger-600']),
                         Repeater::make('line_items')
-                            ->label('Daftar Item (Editable)')
-                            ->schema(self::lineItemFields())
+                            ->label('Tabel List Barang')
+                            ->schema(self::lineItemTableSchema())
+                            ->table(self::lineItemTableColumns())
                             ->default([])
                             ->columns(12)
                             ->columnSpanFull()
-                            ->cloneable()
+                            ->cloneable(false)
+                            ->deletable(false)
                             ->reorderable()
-                            ->createItemButtonLabel('Tambah manual')
+                            ->createItemButtonLabel('Tambah Barang')
+                            ->addAction(fn (Action $action): Action => self::configureCreateLineItemAction($action))
+                            ->extraItemActions([
+                                self::makeEditLineItemAction(),
+                            ])
+                            ->extraAttributes(['data-row-click-action' => 'edit_line_item'])
+                            ->afterStateUpdated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
+                                self::syncLineItemSummaries($set, $get, $state ?? []);
+                            })
+                            ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
+                                self::syncLineItemSummaries($set, $get, $state ?? []);
+                            })
                             ->itemLabel(fn (array $state): string => $state['item_name'] ?? 'Item Live Bird')
-                            ->helperText('Minimal satu item tersimpan dengan qty & harga valid.'),
+                            ->helperText('Klik baris untuk mengubah detail melalui modal.'),
             ])
             ->columnSpanFull();
 
         $summarySection = Section::make('Ringkasan Kuantitas & Catatan')
             ->schema([
-                        TextEntry::make('total_quantity_ea')
+                        TextInput::make('total_quantity_ea')
                             ->label('Total Ekor')
-                            ->state(fn (SchemaGet $get): string => (string) collect($get('line_items') ?? [])
-                                ->sum(fn (array $item): float => (float) ($item['unit'] === 'ekor' ? $item['quantity'] ?? 0 : 0))),
-                        TextEntry::make('total_weight_kg')
+                            ->readOnly()
+                            ->default('0'),
+                        TextInput::make('total_weight_kg')
                             ->label('Total Berat (Kg)')
-                            ->state(fn (SchemaGet $get): string => (string) collect($get('line_items') ?? [])
-                                ->sum(fn (array $item): float => (float) ($item['unit'] === 'kg' ? $item['quantity'] ?? 0 : 0))),
+                            ->readOnly()
+                            ->default('0'),
                         TextInput::make('subtotal')
                             ->label('Subtotal')
-                            ->numeric()
+                            ->readOnly()
+                            ->default(0)
                             ->prefix('Rp'),
                         TextInput::make('discount_total')
                             ->label('Total Diskon')
-                            ->numeric()
+                            ->readOnly()
+                            ->default(0)
                             ->prefix('Rp'),
                         TextInput::make('tax_total')
                             ->label('Total Pajak')
-                            ->numeric()
+                            ->readOnly()
+                            ->default(0)
                             ->prefix('Rp'),
                         TextInput::make('grand_total')
                             ->label('Total Akhir')
-                            ->numeric()
+                            ->readOnly()
+                            ->default(0)
                             ->prefix('Rp'),
                         
                         ])
@@ -256,13 +278,12 @@ class LiveChickenPurchaseOrderForm
 
         return $schema
             ->components([
+                $headerSection,
                 Tabs::make('live_chicken_po_form_tabs')
                     ->tabs([
                         Tab::make('Detail PO')
                             ->schema([
-                                $headerSection,
                                 $lineItemsSection,
-                                $summarySection,
                             ]),
                         Tab::make('Pembayaran & Pajak')
                             ->schema([
@@ -270,42 +291,131 @@ class LiveChickenPurchaseOrderForm
                             ]),
                     ])
                     ->columnSpanFull(),
+                $summarySection,
             ]);
+    }
+
+    protected static function lineItemTableSchema(): array
+    {
+        return [
+            Hidden::make('product_id'),
+            Hidden::make('item_code'),
+            Hidden::make('item_name'),
+            Hidden::make('quantity'),
+            Hidden::make('unit'),
+            Hidden::make('unit_price'),
+            Hidden::make('discount_type'),
+            Hidden::make('discount_value'),
+            Hidden::make('apply_tax'),
+            Hidden::make('notes'),
+            Placeholder::make('table_item_summary')
+                ->hiddenLabel()
+                ->content(function (SchemaGet $get): string {
+                    $label = $get('item_name') ?: 'Item belum diberi nama';
+                    $code = $get('item_code');
+                    $notes = $get('notes');
+
+                    $parts = [$label];
+
+                    if ($code) {
+                        $parts[] = sprintf('[%s]', $code);
+                    }
+
+                    if ($notes) {
+                        $parts[] = $notes;
+                    }
+
+                    return implode(PHP_EOL, array_filter($parts));
+                })
+                ->extraAttributes([
+                    'class' => 'whitespace-pre-line leading-tight text-sm font-medium text-gray-900',
+                ]),
+            Placeholder::make('table_quantity')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => number_format((float) ($get('quantity') ?? 0), 2, ',', '.'))
+                ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
+            Placeholder::make('table_unit')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => strtoupper((string) ($get('unit') ?? 'N/A')))
+                ->extraAttributes(['class' => 'text-sm text-gray-700 uppercase']),
+            Placeholder::make('table_unit_price')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::formatCurrency(self::sanitizeMoneyValue($get('unit_price'))))
+                ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
+            Placeholder::make('table_discount')
+                ->hiddenLabel()
+                ->content(function (SchemaGet $get): string {
+                    $value = self::sanitizeMoneyValue($get('discount_value'));
+                    $type = $get('discount_type') ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT;
+
+                    if ($value <= 0) {
+                        return 'N/A';
+                    }
+
+                    if ($type === LiveChickenPurchaseOrder::DISCOUNT_TYPE_PERCENTAGE) {
+                        return number_format(min($value, 100), 2, ',', '.') . '%';
+                    }
+
+                    return self::formatCurrency($value);
+                })
+                ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
+            Placeholder::make('table_tax')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => $get('apply_tax') ? 'PPN 11%' : 'Non PPN')
+                ->extraAttributes(['class' => 'text-sm text-gray-700 text-center']),
+            Placeholder::make('table_line_total')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::formatCurrency(self::calculateLineTotal($get)))
+                ->extraAttributes(['class' => 'text-right font-semibold tabular-nums text-sm text-gray-900']),
+        ];
+    }
+
+    protected static function lineItemTableColumns(): array
+    {
+        return [
+            TableColumn::make('Barang')->width('28rem'),
+            TableColumn::make('Qty')->width('7rem'),
+            TableColumn::make('Satuan')->width('6rem'),
+            TableColumn::make('@Harga')->width('10rem'),
+            TableColumn::make('Diskon')->width('8rem'),
+            TableColumn::make('PPN')->width('8rem'),
+            TableColumn::make('Total')->width('10rem'),
+        ];
     }
 
     protected static function lineItemFields(): array
     {
         return [
             Hidden::make('product_id'),
-            TextInput::make('item_name')
-                ->label('Nama Barang')
-                ->required()
-                ->maxLength(120)
-                ->columnSpan(5),
             TextInput::make('item_code')
-                ->label('Kode #')
+                ->inlineLabel('Kode #')
                 ->maxLength(30)
                 ->readOnly()
                 ->dehydrated()
-                ->columnSpan(2),
+                ->columnSpanFull(),
+            TextInput::make('item_name')
+                ->inlineLabel('Nama Barang')
+                ->required()
+                ->maxLength(120)
+                ->columnSpanFull(),
             TextInput::make('quantity')
-                ->label('Qty')
+                ->inlineLabel('Qty')
                 ->numeric()
                 ->required()
                 ->minValue(0.01)
                 ->live()
-                ->columnSpan(2),
+                ->columnSpanFull(),
             Select::make('unit')
-                ->label('Satuan')
+                ->inlineLabel('Satuan')
                 ->options([
                     'ekor' => 'Ekor',
                     'kg' => 'Kg',
                 ])
                 ->required()
                 ->native(false)
-                ->columnSpan(3),
+                ->columnSpanFull(),
             TextInput::make('unit_price')
-                ->label('@Harga')
+                ->inlineLabel('@Harga')
                 ->numeric()
                 ->type('text')
                 ->required()
@@ -314,17 +424,17 @@ class LiveChickenPurchaseOrderForm
                 ->mask(RawJs::make('$money($input, ",", ".", 0)'))
                 ->stripCharacters(['.', ','])
                 ->live()
-                ->columnSpan(3),
+                ->columnSpanFull(),
             ToggleButtons::make('discount_type')
-                ->label('Tipe Diskon')
+                ->inlineLabel('Tipe Diskon')
                 ->options(LiveChickenPurchaseOrder::discountTypeOptions())
                 ->default(LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT)
                 ->inline()
                 ->grouped()
                 ->live()
-                ->columnSpan(2),
+                ->columnSpanFull(),
             TextInput::make('discount_value')
-                ->label('Nilai Diskon')
+                ->inlineLabel('Nilai Diskon')
                 ->numeric()
                 ->default(0)
                 ->minValue(0)
@@ -342,20 +452,112 @@ class LiveChickenPurchaseOrderForm
                 })
                 ->helperText(fn (SchemaGet $get): string => $get('discount_type') === LiveChickenPurchaseOrder::DISCOUNT_TYPE_PERCENTAGE ? 'Maksimal 100%.' : 'Tidak boleh melebihi harga total.')
                 ->live()
-                ->columnSpan(2),
+                ->columnSpanFull(),
             Checkbox::make('apply_tax')
-                ->label('PPN 11%')
+                ->inlineLabel('PPN 11%')
                 ->default(true)
-                ->columnSpan(2),
+                ->columnSpanFull(),
             Placeholder::make('computed_total')
-                ->label('Total Harga')
+                ->inlineLabel('Total Harga')
                 ->content(fn (SchemaGet $get): string => self::formatCurrency(self::calculateLineTotal($get)))
-                ->columnSpan(2),
+                ->columnSpanFull(),
             Textarea::make('notes')
-                ->label('Catatan Item')
+                ->inlineLabel('Catatan Item')
                 ->rows(2)
-                ->columnSpan(12),
+                ->columnSpanFull(),
         ];
+    }
+
+    protected static function configureCreateLineItemAction(Action $action): Action
+    {
+        return $action
+            ->label('Tambah Barang')
+            ->icon('heroicon-m-plus')
+            ->modalHeading('Tambah Barang')
+            ->modalSubmitActionLabel('Simpan')
+            ->modalWidth('5xl')
+            ->schema(self::lineItemFields())
+            ->mountUsing(function (Schema $schema): void {
+                $schema->fill(self::defaultLineItemState());
+            })
+            ->action(function (array $data, Repeater $component): void {
+                self::upsertLineItemState($component, self::prepareLineItemPayload($data));
+            });
+    }
+
+    protected static function makeEditLineItemAction(): Action
+    {
+        return Action::make('edit_line_item')
+            ->label('Ubah Barang')
+            ->modalHeading('Detail Barang')
+            ->modalSubmitActionLabel('Simpan')
+            ->modalWidth('5xl')
+            ->schema(self::lineItemFields())
+            ->extraAttributes(['data-row-trigger-only' => true])
+            ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
+                $state = self::getLineItemStateByKey($component, $arguments['item'] ?? null) ?? self::defaultLineItemState();
+
+                $schema->fill($state);
+            })
+            ->action(function (array $data, array $arguments, Repeater $component): void {
+                $itemKey = $arguments['item'] ?? null;
+
+                if ($arguments['delete_line_item'] ?? false) {
+                    self::removeLineItemState($component, $itemKey);
+
+                    return;
+                }
+
+                self::upsertLineItemState($component, self::prepareLineItemPayload($data), $itemKey);
+            })
+            ->extraModalFooterActions(fn (Action $action): array => [
+                $action->makeModalSubmitAction('delete_line_item', arguments: ['delete_line_item' => true])
+                    ->label('Hapus')
+                    ->color('danger')
+                    ->requiresConfirmation(),
+            ]);
+    }
+
+    protected static function upsertLineItemState(Repeater $component, array $payload, ?string $itemKey = null): void
+    {
+        $items = $component->getRawState() ?? [];
+        $key = $itemKey ?: (string) Str::uuid();
+
+        $items[$key] = $payload;
+
+        $component->rawState($items);
+        $component->callAfterStateUpdated();
+        $component->partiallyRender();
+    }
+
+    protected static function removeLineItemState(Repeater $component, ?string $itemKey): void
+    {
+        if (! $itemKey) {
+            return;
+        }
+
+        $items = $component->getRawState() ?? [];
+
+        if (! array_key_exists($itemKey, $items)) {
+            return;
+        }
+
+        unset($items[$itemKey]);
+
+        $component->rawState($items);
+        $component->callAfterStateUpdated();
+        $component->partiallyRender();
+    }
+
+    protected static function getLineItemStateByKey(Repeater $component, ?string $itemKey): ?array
+    {
+        if (! $itemKey) {
+            return null;
+        }
+
+        $items = $component->getRawState() ?? [];
+
+        return $items[$itemKey] ?? null;
     }
 
     protected static function appendLineItem(array $data, SchemaSet $set, SchemaGet $get): void
@@ -404,6 +606,91 @@ class LiveChickenPurchaseOrderForm
             'apply_tax' => (bool) ($data['apply_tax'] ?? true),
             'notes' => $data['notes'] ?? null,
         ];
+    }
+
+    protected static function syncLineItemSummaries(SchemaSet $set, SchemaGet $get, array $lineItems): void
+    {
+        $taxRatePercent = (float) ($get('tax_rate') ?? 0);
+        $summary = self::calculateLineItemSummaries($lineItems, $taxRatePercent);
+
+        $set('total_quantity_ea', (string) $summary['total_quantity_ea']);
+        $set('total_weight_kg', (string) $summary['total_weight_kg']);
+        $set('subtotal', $summary['subtotal']);
+        $set('discount_total', $summary['discount_total']);
+        $set('tax_total', $summary['tax_total']);
+        $set('grand_total', $summary['grand_total']);
+    }
+
+    protected static function calculateLineItemSummaries(array $lineItems, float $taxRatePercent): array
+    {
+        $totals = [
+            'total_quantity_ea' => 0.0,
+            'total_weight_kg' => 0.0,
+            'gross_subtotal' => 0.0,
+            'discount_total' => 0.0,
+            'subtotal' => 0.0,
+            'taxable_subtotal' => 0.0,
+        ];
+
+        foreach ($lineItems as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $quantity = (float) ($item['quantity'] ?? 0);
+            $unit = strtolower((string) ($item['unit'] ?? ''));
+
+            if ($unit === 'ekor') {
+                $totals['total_quantity_ea'] += $quantity;
+            }
+
+            if ($unit === 'kg') {
+                $totals['total_weight_kg'] += $quantity;
+            }
+
+            $unitPrice = self::sanitizeMoneyValue($item['unit_price'] ?? 0);
+            $grossLine = $quantity * $unitPrice;
+
+            $discountType = $item['discount_type'] ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT;
+            $discountValue = self::sanitizeMoneyValue($item['discount_value'] ?? 0);
+            $discountAmount = self::resolveLineDiscountAmount($grossLine, $discountType, $discountValue);
+
+            $netLine = max($grossLine - $discountAmount, 0);
+
+            $totals['gross_subtotal'] += $grossLine;
+            $totals['discount_total'] += $discountAmount;
+            $totals['subtotal'] += $netLine;
+
+            if (! empty($item['apply_tax'])) {
+                $totals['taxable_subtotal'] += $netLine;
+            }
+        }
+
+        $taxRate = max($taxRatePercent, 0) / 100;
+        $taxTotal = $totals['taxable_subtotal'] * $taxRate;
+        $grandTotal = $totals['subtotal'] + $taxTotal;
+
+        return [
+            'total_quantity_ea' => round($totals['total_quantity_ea'], 2),
+            'total_weight_kg' => round($totals['total_weight_kg'], 2),
+            'subtotal' => round($totals['subtotal'], 2),
+            'discount_total' => round($totals['discount_total'], 2),
+            'tax_total' => round($taxTotal, 2),
+            'grand_total' => round($grandTotal, 2),
+        ];
+    }
+
+    protected static function resolveLineDiscountAmount(float $grossTotal, string $discountType, float $discountValue): float
+    {
+        if ($grossTotal <= 0 || $discountValue <= 0) {
+            return 0.0;
+        }
+
+        if ($discountType === LiveChickenPurchaseOrder::DISCOUNT_TYPE_PERCENTAGE) {
+            return min($discountValue, 100) / 100 * $grossTotal;
+        }
+
+        return min($discountValue, $grossTotal);
     }
 
     protected static function searchLiveBirdProducts(?string $search = null): array
