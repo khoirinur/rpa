@@ -27,7 +27,7 @@ class LiveChickenPurchaseOrderResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return 'PO Ayam Hidup';
+        return 'Pembelian Ayam Hidup';
     }
 
     public static function getNavigationGroup(): ?string
@@ -37,12 +37,12 @@ class LiveChickenPurchaseOrderResource extends Resource
 
     public static function getPluralModelLabel(): string
     {
-        return 'Master PO Ayam Hidup';
+        return 'Pembelian Ayam Hidup';
     }
 
     public static function getModelLabel(): string
     {
-        return 'PO Ayam Hidup';
+        return 'Pembelian Ayam Hidup';
     }
 
     public static function form(Schema $schema): Schema

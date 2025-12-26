@@ -6,6 +6,8 @@ use App\Models\LiveChickenPurchaseOrder;
 use App\Models\Product;
 use App\Models\Supplier;
 use Closure;
+use Throwable;
+use Filament\Schemas\Components\Component;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
@@ -26,6 +28,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Support\RawJs;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -42,13 +45,14 @@ class LiveChickenPurchaseOrderForm
             'product_id' => null,
             'item_code' => null,
             'item_name' => null,
-            'quantity' => 1,
-            'unit' => 'ekor',
+            'quantity' => 0,
+            'unit' => 'kg',
             'unit_price' => 0,
             'discount_type' => LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT,
             'discount_value' => 0,
-            'apply_tax' => true,
+            'apply_tax' => false,
             'notes' => null,
+            '__draft' => false,
         ];
     }
 
@@ -92,6 +96,7 @@ class LiveChickenPurchaseOrderForm
                             ->label('Supplier')
                             ->relationship('supplier', 'name')
                             ->searchable()
+                            ->preload(10)
                             ->required()
                             ->native(false)
                             ->live()
@@ -155,7 +160,11 @@ class LiveChickenPurchaseOrderForm
                             ->maxLength(120),
                         Toggle::make('is_tax_inclusive')
                             ->label('Harga Termasuk Pajak')
-                            ->inline(false),
+                            ->inline(false)
+                            ->live()
+                            ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
+                                self::syncLineItemSummaries($set, $get, $get('line_items') ?? []);
+                            }),
                         Select::make('tax_dpp_type')
                             ->label('Jenis DPP')
                             ->options($taxDppOptions)
@@ -168,6 +177,7 @@ class LiveChickenPurchaseOrderForm
                             ->default('11.00')
                             ->native(false)
                             ->required()
+                            ->live()
                                ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
                                    self::syncLineItemSummaries($set, $get, $get('line_items') ?? []);
                                }),
@@ -175,20 +185,29 @@ class LiveChickenPurchaseOrderForm
                             ->label('Tipe Diskon Global')
                             ->options(LiveChickenPurchaseOrder::discountTypeOptions())
                             ->default(LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT)
-                            ->native(false),
+                            ->native(false)
+                            ->live()
+                            ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
+                                self::syncLineItemSummaries($set, $get, $get('line_items') ?? []);
+                            }),
                         TextInput::make('global_discount_value')
                             ->label('Nilai Diskon Global')
                             ->numeric()
+                            ->default(0)
                             ->minValue(0)
-                            ->prefix('Rp'),
+                            ->prefix('Rp')
+                            ->dehydrateStateUsing(fn ($state): float => self::sanitizeMoneyValue($state ?? 0))
+                            ->live()
+                            ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
+                                self::syncLineItemSummaries($set, $get, $get('line_items') ?? []);
+                            }),
             ])
             ->columns(4)
             ->columnSpanFull();
 
         $lineItemsSection = Section::make('Rincian Barang')
             ->schema([
-                        Hidden::make('pending_line_item_key')
-                            ->dehydrated(false),
+                        Hidden::make('pending_line_item_payload'),
                         Select::make('line_item_search')
                             ->label('Cari & Tambah Barang')
                             ->placeholder('Ketik kode atau nama produk')
@@ -201,15 +220,32 @@ class LiveChickenPurchaseOrderForm
                             ->dehydrated(false)
                             ->disabled(fn (SchemaGet $get): bool => blank($get('supplier_id')))
                             ->getOptionLabelUsing(fn (?int $value): ?string => self::getLiveBirdProductLabel($value))
-                            ->afterStateUpdated(function (?int $state, SchemaSet $set, SchemaGet $get): void {
+                            ->afterStateUpdated(function (?int $state, SchemaSet $set, SchemaGet $get, Select $component): void {
                                 if (! $state) {
                                     return;
                                 }
 
-                                $itemKey = self::appendLineItemFromProduct($state, $set, $get);
+                                $payload = self::buildPendingLineItemPayloadFromProduct($state);
 
-                                $set('pending_line_item_key', $itemKey); // lalu buka modal edit item utk input qty dll
+                                Log::debug('[PO][debug] product selected, opening pending modal', [
+                                    'productId' => $state,
+                                    'itemName' => $payload['item_name'] ?? null,
+                                ]);
+
                                 $set('line_item_search', null);
+
+                                $lineItemsComponent = self::resolveLineItemsComponentFrom($component);
+
+                                if ($lineItemsComponent && self::triggerPendingLineItemModal($payload, $lineItemsComponent)) {
+                                    return;
+                                }
+
+                                Log::debug('[PO][debug] pending modal deferred until repeater ready', [
+                                    'productId' => $state,
+                                    'hasLineItemsComponent' => (bool) $lineItemsComponent,
+                                ]);
+
+                                $set('pending_line_item_payload', $payload);
                             })
                             ->columnSpanFull(),
                         Placeholder::make('line_item_gate_notice')
@@ -235,10 +271,10 @@ class LiveChickenPurchaseOrderForm
                             ->extraAttributes(['data-row-click-action' => 'edit_line_item'])
                             ->afterStateUpdated(function (?array $state, SchemaSet $set, SchemaGet $get, Repeater $component): void {
                                 self::syncLineItemSummaries($set, $get, $state ?? []);
-                                self::maybeTriggerPendingLineItemModal($set, $get, $component);
                             })
-                            ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
+                            ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get, Repeater $component): void {
                                 self::syncLineItemSummaries($set, $get, $state ?? []);
+                                self::processPendingLineItemPayload($set, $get, $component);
                             })
                             ->itemLabel(fn (array $state): string => $state['item_name'] ?? 'Item Live Bird')
                             ->helperText('Klik baris untuk mengubah detail melalui modal.'),
@@ -337,7 +373,7 @@ class LiveChickenPurchaseOrderForm
                 ]),
             Placeholder::make('table_quantity')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => number_format((float) ($get('quantity') ?? 0), 2, ',', '.'))
+                ->content(fn (SchemaGet $get): string => self::formatQuantityValue(self::sanitizeMoneyValue($get('quantity'))))
                 ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
             Placeholder::make('table_unit')
                 ->hiddenLabel()
@@ -366,7 +402,7 @@ class LiveChickenPurchaseOrderForm
                 ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
             Placeholder::make('table_tax')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => $get('apply_tax') ? 'PPN 11%' : 'Non PPN')
+                ->content(fn (SchemaGet $get): string => $get('apply_tax') ? 'YA' : 'Non PPN')
                 ->extraAttributes(['class' => 'text-sm text-gray-700 text-center']),
             Placeholder::make('table_line_total')
                 ->hiddenLabel()
@@ -408,17 +444,26 @@ class LiveChickenPurchaseOrderForm
             TextInput::make('quantity')
                 ->label('Qty')
                 ->inlineLabel()
-                ->numeric()
+                ->type('text')
                 ->required()
-                ->minValue(0.01)
+                ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
+                    if (self::sanitizeMoneyValue($value) < 0.01) {
+                        $fail('Qty minimal 0,01.');
+                    }
+                })
+                ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS
+                ))
+                ->stripCharacters(['.', ','])
                 ->live()
                 ->columnSpanFull(),
             Select::make('unit')
                 ->label('Satuan')
                 ->inlineLabel()
                 ->options([
-                    'ekor' => 'Ekor',
                     'kg' => 'Kg',
+                    'ekor' => 'Ekor',
                 ])
                 ->required()
                 ->native(false)
@@ -426,12 +471,18 @@ class LiveChickenPurchaseOrderForm
             TextInput::make('unit_price')
                 ->label('@Harga')
                 ->inlineLabel()
-                ->numeric()
                 ->type('text')
                 ->required()
-                ->minValue(0)
+                ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
+                    if (self::sanitizeMoneyValue($value) < 0) {
+                        $fail('Harga tidak boleh negatif.');
+                    }
+                })
                 ->prefix('Rp')
-                ->mask(RawJs::make('$money($input, ",", ".", 0)'))
+                ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS
+                ))
                 ->stripCharacters(['.', ','])
                 ->live()
                 ->columnSpanFull(),
@@ -466,9 +517,9 @@ class LiveChickenPurchaseOrderForm
                 ->live()
                 ->columnSpanFull(),
             Checkbox::make('apply_tax')
-                ->label('PPN 11%')
+                ->label('PPN')
                 ->inlineLabel()
-                ->default(true)
+                ->default(false)
                 ->columnSpanFull(),
             Placeholder::make('computed_total')
                 ->label('Total Harga')
@@ -493,18 +544,54 @@ class LiveChickenPurchaseOrderForm
             ->schema(self::lineItemFields())
             ->extraAttributes(['data-row-trigger-only' => true])
             ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
-                $state = self::getLineItemStateByKey($component, $arguments['item'] ?? null) ?? self::defaultLineItemState();
+                if (! empty($arguments['pending']) && is_array($arguments['payload'] ?? null)) {
+                    Log::debug('[PO][debug] mounting pending line item modal', [
+                        'productId' => $arguments['payload']['product_id'] ?? null,
+                    ]);
+
+                    $schema->fill($arguments['payload']);
+
+                    return;
+                }
+
+                $itemKey = $arguments['item'] ?? null;
+                $state = self::getLineItemStateByKey($component, $itemKey) ?? self::defaultLineItemState();
+
+                Log::debug('[PO][debug] mounting line item modal', [
+                    'itemKey' => $itemKey,
+                    'isExisting' => filled($itemKey),
+                ]);
 
                 $schema->fill($state);
             })
             ->action(function (array $data, array $arguments, Repeater $component): void {
                 $itemKey = $arguments['item'] ?? null;
+                $isPending = (bool) ($arguments['pending'] ?? false);
 
                 if ($arguments['delete_line_item'] ?? false) {
+                    Log::debug('[PO][debug] delete_line_item clicked', [
+                        'itemKey' => $itemKey,
+                    ]);
                     self::removeLineItemState($component, $itemKey);
 
                     return;
                 }
+
+                if ($isPending) {
+                    Log::debug('[PO][debug] pending line item save', [
+                        'productId' => $data['product_id'] ?? null,
+                    ]);
+
+                    $data['__draft'] = false;
+                    self::upsertLineItemState($component, self::prepareLineItemPayload($data));
+
+                    return;
+                }
+
+                Log::debug('[PO][debug] line_item_save clicked', [
+                    'itemKey' => $itemKey,
+                    'isExisting' => filled($itemKey),
+                ]);
 
                 self::upsertLineItemState($component, self::prepareLineItemPayload($data), $itemKey);
             })
@@ -526,6 +613,14 @@ class LiveChickenPurchaseOrderForm
         $component->rawState($items);
         $component->callAfterStateUpdated();
         $component->partiallyRender();
+
+        if ($itemKey) {
+            $livewire = $component->getLivewire();
+
+            if ($livewire && method_exists($livewire, 'dispatch')) {
+                $livewire->dispatch('filament::line-item-modal-closed');
+            }
+        }
     }
 
     protected static function removeLineItemState(Repeater $component, ?string $itemKey): void
@@ -558,24 +653,30 @@ class LiveChickenPurchaseOrderForm
         return $items[$itemKey] ?? null;
     }
 
-    protected static function appendLineItem(array $data, SchemaSet $set, SchemaGet $get): string
+    protected static function processPendingLineItemPayload(SchemaSet $set, SchemaGet $get, Repeater $component): void
     {
-        $items = $get('line_items');
+        $payload = $get('pending_line_item_payload');
 
-        if (! is_array($items)) {
-            $items = [];
+        if (! is_array($payload)) {
+            return;
         }
 
-        $itemKey = (string) Str::uuid();
+        $set('pending_line_item_payload', null);
 
-        $items[$itemKey] = self::prepareLineItemPayload($data);
+        Log::debug('[PO][debug] pending payload detected, triggering modal', [
+            'productId' => $payload['product_id'] ?? null,
+        ]);
 
-        $set('line_items', $items);
+        if (! self::triggerPendingLineItemModal($payload, $component)) {
+            Log::warning('[PO][debug] pending modal trigger failed, payload restored', [
+                'productId' => $payload['product_id'] ?? null,
+            ]);
 
-        return $itemKey;
+            $set('pending_line_item_payload', $payload);
+        }
     }
 
-    protected static function appendLineItemFromProduct(int $productId, SchemaSet $set, SchemaGet $get): string
+    protected static function buildPendingLineItemPayloadFromProduct(int $productId): ?array
     {
         $data = self::defaultLineItemState();
         $data['product_id'] = $productId;
@@ -585,45 +686,91 @@ class LiveChickenPurchaseOrderForm
         if ($details) {
             $data['item_name'] = $details['name'] ?? null;
             $data['item_code'] = $details['code'] ?? null;
+            $data['unit'] = self::resolveProductUnitCode($details['unit_id'] ?? null);
+        } else {
+            Log::warning('[PO][debug] live bird product details missing', [
+                'productId' => $productId,
+            ]);
         }
 
-        return self::appendLineItem($data, $set, $get);
+        $data['__draft'] = true;
+
+        return $data;
     }
 
-    protected static function maybeTriggerPendingLineItemModal(SchemaSet $set, SchemaGet $get, Repeater $component): void
+    protected static function resolveLineItemsComponentFrom(Component $context): ?Repeater
     {
-        $pendingKey = $get('pending_line_item_key');
+        $livewire = $context->getLivewire();
 
-        if (blank($pendingKey)) {
-            return;
+        if (! $livewire || ! method_exists($livewire, 'getSchemaComponent')) {
+            return null;
         }
 
-        $set('pending_line_item_key', null);
+        $key = $context->resolveRelativeKey('line_items');
 
-        self::triggerLineItemEditorModal($pendingKey, $component);
+        if (blank($key)) {
+            return null;
+        }
+
+        return $livewire->getSchemaComponent($key, withHidden: true);
     }
 
-    protected static function triggerLineItemEditorModal(?string $itemKey, Repeater $component): void
+    protected static function triggerPendingLineItemModal(array $payload, Repeater $component): bool
     {
-        if (blank($itemKey)) {
-            return;
-        }
-
         $schemaComponentKey = $component->getKey();
-
-        if (blank($schemaComponentKey)) {
-            return;
-        }
-
         $livewire = $component->getLivewire();
 
-        if (! method_exists($livewire, 'mountFormComponentAction')) {
-            return;
+        if (blank($schemaComponentKey) || ! $livewire) {
+            Log::warning('[PO][debug] pending modal guard failed', [
+                'hasSchemaComponentKey' => (bool) $schemaComponentKey,
+                'hasLivewire' => (bool) $livewire,
+            ]);
+            return false;
         }
 
-        $livewire->mountFormComponentAction($schemaComponentKey, 'edit_line_item', [
-            'item' => $itemKey,
+        $arguments = [
+            'pending' => true,
+            'payload' => $payload,
+        ];
+
+        if (method_exists($livewire, 'mountAction')) {
+            try {
+                $livewire->mountAction('edit_line_item', $arguments, [
+                    'schemaComponent' => $schemaComponentKey,
+                ]);
+
+                Log::debug('[PO][debug] pending modal opened via mountAction', [
+                    'productId' => $payload['product_id'] ?? null,
+                ]);
+
+                return true;
+            } catch (Throwable $exception) {
+                Log::error('[PO][debug] mountAction failed for pending modal', [
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        if (method_exists($livewire, 'dispatch') && method_exists($livewire, 'getId')) {
+            $livewire->dispatch('filament::line-item-modal-requested', [
+                'livewireId' => $livewire->getId(),
+                'action' => 'edit_line_item',
+                'arguments' => $arguments,
+                'context' => ['schemaComponent' => $schemaComponentKey],
+            ]);
+
+            Log::debug('[PO][debug] pending modal dispatched via browser event', [
+                'productId' => $payload['product_id'] ?? null,
+            ]);
+
+            return true;
+        }
+
+        Log::warning('[PO][debug] pending modal trigger failed', [
+            'productId' => $payload['product_id'] ?? null,
         ]);
+
+        return false;
     }
 
     protected static function prepareLineItemPayload(array $data): array
@@ -634,20 +781,30 @@ class LiveChickenPurchaseOrderForm
             'product_id' => $data['product_id'] ?? $details['id'] ?? null,
             'item_code' => $data['item_code'] ?? $details['code'] ?? null,
             'item_name' => $data['item_name'] ?? $details['name'] ?? null,
-            'quantity' => (float) ($data['quantity'] ?? 0),
+            'quantity' => self::sanitizeMoneyValue($data['quantity'] ?? 0),
             'unit' => $data['unit'] ?? 'ekor',
             'unit_price' => self::sanitizeMoneyValue($data['unit_price'] ?? 0),
             'discount_type' => $data['discount_type'] ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT,
             'discount_value' => self::sanitizeMoneyValue($data['discount_value'] ?? 0),
             'apply_tax' => (bool) ($data['apply_tax'] ?? true),
             'notes' => $data['notes'] ?? null,
+            '__draft' => (bool) ($data['__draft'] ?? false),
         ];
     }
 
     protected static function syncLineItemSummaries(SchemaSet $set, SchemaGet $get, array $lineItems): void
     {
         $taxRatePercent = (float) ($get('tax_rate') ?? 0);
-        $summary = self::calculateLineItemSummaries($lineItems, $taxRatePercent);
+        $isTaxInclusive = (bool) ($get('is_tax_inclusive') ?? false);
+        $globalDiscountType = $get('global_discount_type') ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT;
+        $globalDiscountValue = self::sanitizeMoneyValue($get('global_discount_value') ?? 0);
+        $summary = self::calculateLineItemSummaries(
+            $lineItems,
+            $taxRatePercent,
+            $isTaxInclusive,
+            $globalDiscountType,
+            $globalDiscountValue
+        );
 
         $set('total_quantity_ea', (string) $summary['total_quantity_ea']);
         $set('total_weight_kg', (string) $summary['total_weight_kg']);
@@ -657,7 +814,13 @@ class LiveChickenPurchaseOrderForm
         $set('grand_total', $summary['grand_total']);
     }
 
-    protected static function calculateLineItemSummaries(array $lineItems, float $taxRatePercent): array
+    protected static function calculateLineItemSummaries(
+        array $lineItems,
+        float $taxRatePercent,
+        bool $isTaxInclusive = false,
+        string $globalDiscountType = LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT,
+        float $globalDiscountValue = 0.0
+    ): array
     {
         $totals = [
             'total_quantity_ea' => 0.0,
@@ -673,7 +836,7 @@ class LiveChickenPurchaseOrderForm
                 continue;
             }
 
-            $quantity = (float) ($item['quantity'] ?? 0);
+            $quantity = self::sanitizeMoneyValue($item['quantity'] ?? 0);
             $unit = strtolower((string) ($item['unit'] ?? ''));
 
             if ($unit === 'ekor') {
@@ -702,15 +865,25 @@ class LiveChickenPurchaseOrderForm
             }
         }
 
+        $globalDiscountAmount = self::resolveLineDiscountAmount($totals['subtotal'], $globalDiscountType, $globalDiscountValue);
+        $netSubtotal = max($totals['subtotal'] - $globalDiscountAmount, 0);
+
+        $taxableSubtotal = $totals['taxable_subtotal'];
+
+        if ($totals['subtotal'] > 0 && $taxableSubtotal > 0 && $globalDiscountAmount > 0) {
+            $taxableShare = min($taxableSubtotal / $totals['subtotal'], 1);
+            $taxableSubtotal = max($taxableSubtotal - ($globalDiscountAmount * $taxableShare), 0);
+        }
+
         $taxRate = max($taxRatePercent, 0) / 100;
-        $taxTotal = $totals['taxable_subtotal'] * $taxRate;
-        $grandTotal = $totals['subtotal'] + $taxTotal;
+        $taxTotal = $isTaxInclusive ? 0.0 : $taxableSubtotal * $taxRate;
+        $grandTotal = $netSubtotal + $taxTotal;
 
         return [
             'total_quantity_ea' => round($totals['total_quantity_ea'], 2),
             'total_weight_kg' => round($totals['total_weight_kg'], 2),
-            'subtotal' => round($totals['subtotal'], 2),
-            'discount_total' => round($totals['discount_total'], 2),
+            'subtotal' => round($netSubtotal, 2),
+            'discount_total' => round($totals['discount_total'] + $globalDiscountAmount, 2),
             'tax_total' => round($taxTotal, 2),
             'grand_total' => round($grandTotal, 2),
         ];
@@ -775,11 +948,20 @@ class LiveChickenPurchaseOrderForm
             self::$productNameCache[$productId] = Product::query()
                 ->whereKey($productId)
                 ->whereHas('productCategory', fn (Builder $query) => $query->where('code', 'LB'))
-                ->first(['id', 'name', 'code'])
+                ->first(['id', 'name', 'code', 'unit_id'])
                 ?->toArray();
         }
 
         return self::$productNameCache[$productId];
+    }
+
+    protected static function resolveProductUnitCode(?int $unitId): string
+    {
+        return match ($unitId) {
+            2 => 'ekor',
+            1 => 'kg',
+            default => 'kg',
+        };
     }
 
     protected static function calculateLineTotal(SchemaGet $get): float
@@ -804,11 +986,23 @@ class LiveChickenPurchaseOrderForm
         return 'Rp ' . number_format($value, 0, ',', '.');
     }
 
+    protected static function formatQuantityValue(float $value): string
+    {
+        $formatted = number_format($value, 3, ',', '.');
+
+        if (str_contains($formatted, ',')) {
+            $formatted = rtrim(rtrim($formatted, '0'), ',');
+        }
+
+        return $formatted;
+    }
+
     protected static function calculateGrossLineTotal(SchemaGet $get): float
     {
-        $quantity = (float) ($get('quantity') ?? 0);
-        $unitPrice = self::sanitizeMoneyValue($get('unit_price'));
-
+        $rawQuantity = $get('quantity');
+        $rawUnitPrice = $get('unit_price');
+        $quantity = self::sanitizeMoneyValue($rawQuantity);
+        $unitPrice = self::sanitizeMoneyValue($rawUnitPrice);
         return $quantity * $unitPrice;
     }
 
@@ -818,14 +1012,22 @@ class LiveChickenPurchaseOrderForm
             return 0;
         }
 
-        if (is_numeric($value)) {
+        if (is_int($value) || is_float($value)) {
             return (float) $value;
         }
 
-        $normalized = preg_replace('/[^0-9,.-]/', '', (string) $value) ?? '';
-        $normalized = str_replace('.', '', $normalized);
+        $numericString = preg_replace('/[^0-9,.-]/', '', (string) $value) ?? '';
+
+        if ($numericString === '' || $numericString === '-') {
+            return 0.0;
+        }
+
+        $sign = str_starts_with($numericString, '-') ? -1 : 1;
+        $numericString = ltrim($numericString, '-');
+
+        $normalized = str_replace('.', '', $numericString);
         $normalized = str_replace(',', '.', $normalized);
 
-        return (float) $normalized;
+        return $sign * (float) $normalized;
     }
 }
