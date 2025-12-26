@@ -38,6 +38,10 @@ class WarehouseForm
                             ->minValue(0)
                             ->step(0.01)
                             ->suffix('Kg'),
+                        Textarea::make('notes')
+                            ->label('Catatan Internal')
+                            ->rows(4)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
                 Section::make('Kontak & Status')
@@ -60,13 +64,6 @@ class WarehouseForm
                             ->default(true),
                     ])
                     ->columns(2),
-                Section::make('Catatan')
-                    ->schema([
-                        Textarea::make('notes')
-                            ->label('Catatan Internal')
-                            ->rows(4)
-                            ->columnSpanFull(),
-                    ]),
             ]);
     }
 }

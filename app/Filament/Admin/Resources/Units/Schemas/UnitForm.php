@@ -38,7 +38,12 @@ class UnitForm
                             ])
                             ->required()
                             ->native(false)
-                            ->helperText('Pastikan jenis sesuai supaya multi-gudang mencatat stok dengan benar.'),
+                            ->helperText('Pastikan jenis sesuai supaya multi-gudang mencatat stok dengan benar.')
+                            ->columnSpanFull(),
+                        Textarea::make('description')
+                            ->label('Catatan Tambahan')
+                            ->rows(4)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
                 Section::make('Konfigurasi Presisi & Status')
@@ -58,13 +63,6 @@ class UnitForm
                             ->default(true),
                     ])
                     ->columns(3),
-                Section::make('Catatan')
-                    ->schema([
-                        Textarea::make('description')
-                            ->label('Catatan Tambahan')
-                            ->rows(4)
-                            ->columnSpanFull(),
-                    ]),
             ]);
     }
 }

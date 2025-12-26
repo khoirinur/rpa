@@ -87,7 +87,6 @@ class LiveChickenPurchaseOrderForm
                             ->label('No. PO')
                             ->maxLength(30)
                             ->unique(table: LiveChickenPurchaseOrder::class, column: 'po_number', ignoreRecord: true)
-                            ->required()
                             ->helperText('Nomor otomatis dibuat saat simpan dan tetap bisa diperbarui manual.'),
                         Select::make('supplier_id')
                             ->label('Supplier')
@@ -188,6 +187,8 @@ class LiveChickenPurchaseOrderForm
 
         $lineItemsSection = Section::make('Rincian Barang')
             ->schema([
+                        Hidden::make('pending_line_item_key')
+                            ->dehydrated(false),
                         Select::make('line_item_search')
                             ->label('Cari & Tambah Barang')
                             ->placeholder('Ketik kode atau nama produk')
@@ -205,11 +206,14 @@ class LiveChickenPurchaseOrderForm
                                     return;
                                 }
 
-                                self::appendLineItemFromProduct($state, $set, $get);
+                                $itemKey = self::appendLineItemFromProduct($state, $set, $get);
+
+                                $set('pending_line_item_key', $itemKey); // lalu buka modal edit item utk input qty dll
                                 $set('line_item_search', null);
                             })
                             ->columnSpanFull(),
                         Placeholder::make('line_item_gate_notice')
+                            ->hiddenLabel()
                             ->content('Pilih supplier terlebih dahulu untuk mengaktifkan pencarian barang.')
                             ->visible(fn (SchemaGet $get): bool => blank($get('supplier_id')))
                             ->columnSpanFull()
@@ -221,17 +225,17 @@ class LiveChickenPurchaseOrderForm
                             ->default([])
                             ->columns(12)
                             ->columnSpanFull()
-                            ->cloneable(false)
-                            ->deletable(false)
+                            ->cloneable(true)
+                            ->deletable(true)
+                            ->addable(false)
                             ->reorderable()
-                            ->createItemButtonLabel('Tambah Barang')
-                            ->addAction(fn (Action $action): Action => self::configureCreateLineItemAction($action))
                             ->extraItemActions([
                                 self::makeEditLineItemAction(),
                             ])
                             ->extraAttributes(['data-row-click-action' => 'edit_line_item'])
-                            ->afterStateUpdated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
+                            ->afterStateUpdated(function (?array $state, SchemaSet $set, SchemaGet $get, Repeater $component): void {
                                 self::syncLineItemSummaries($set, $get, $state ?? []);
+                                self::maybeTriggerPendingLineItemModal($set, $get, $component);
                             })
                             ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
                                 self::syncLineItemSummaries($set, $get, $state ?? []);
@@ -327,8 +331,9 @@ class LiveChickenPurchaseOrderForm
 
                     return implode(PHP_EOL, array_filter($parts));
                 })
+                ->color('primary')
                 ->extraAttributes([
-                    'class' => 'whitespace-pre-line leading-tight text-sm font-medium text-gray-900',
+                    'class' => 'whitespace-pre-line leading-tight text-sm font-medium',
                 ]),
             Placeholder::make('table_quantity')
                 ->hiddenLabel()
@@ -388,25 +393,29 @@ class LiveChickenPurchaseOrderForm
         return [
             Hidden::make('product_id'),
             TextInput::make('item_code')
-                ->inlineLabel('Kode #')
+                ->label('Kode #')
+                ->inlineLabel()
                 ->maxLength(30)
                 ->readOnly()
                 ->dehydrated()
                 ->columnSpanFull(),
             TextInput::make('item_name')
-                ->inlineLabel('Nama Barang')
+                ->label('Nama Barang')
+                ->inlineLabel()
                 ->required()
                 ->maxLength(120)
                 ->columnSpanFull(),
             TextInput::make('quantity')
-                ->inlineLabel('Qty')
+                ->label('Qty')
+                ->inlineLabel()
                 ->numeric()
                 ->required()
                 ->minValue(0.01)
                 ->live()
                 ->columnSpanFull(),
             Select::make('unit')
-                ->inlineLabel('Satuan')
+                ->label('Satuan')
+                ->inlineLabel()
                 ->options([
                     'ekor' => 'Ekor',
                     'kg' => 'Kg',
@@ -415,7 +424,8 @@ class LiveChickenPurchaseOrderForm
                 ->native(false)
                 ->columnSpanFull(),
             TextInput::make('unit_price')
-                ->inlineLabel('@Harga')
+                ->label('@Harga')
+                ->inlineLabel()
                 ->numeric()
                 ->type('text')
                 ->required()
@@ -426,7 +436,8 @@ class LiveChickenPurchaseOrderForm
                 ->live()
                 ->columnSpanFull(),
             ToggleButtons::make('discount_type')
-                ->inlineLabel('Tipe Diskon')
+                ->label('Tipe Diskon')
+                ->inlineLabel()
                 ->options(LiveChickenPurchaseOrder::discountTypeOptions())
                 ->default(LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT)
                 ->inline()
@@ -434,7 +445,8 @@ class LiveChickenPurchaseOrderForm
                 ->live()
                 ->columnSpanFull(),
             TextInput::make('discount_value')
-                ->inlineLabel('Nilai Diskon')
+                ->label('Nilai Diskon')
+                ->inlineLabel()
                 ->numeric()
                 ->default(0)
                 ->minValue(0)
@@ -454,35 +466,21 @@ class LiveChickenPurchaseOrderForm
                 ->live()
                 ->columnSpanFull(),
             Checkbox::make('apply_tax')
-                ->inlineLabel('PPN 11%')
+                ->label('PPN 11%')
+                ->inlineLabel()
                 ->default(true)
                 ->columnSpanFull(),
             Placeholder::make('computed_total')
-                ->inlineLabel('Total Harga')
+                ->label('Total Harga')
+                ->inlineLabel()
                 ->content(fn (SchemaGet $get): string => self::formatCurrency(self::calculateLineTotal($get)))
                 ->columnSpanFull(),
             Textarea::make('notes')
-                ->inlineLabel('Catatan Item')
+                ->label('Catatan Item')
+                ->inlineLabel()
                 ->rows(2)
                 ->columnSpanFull(),
         ];
-    }
-
-    protected static function configureCreateLineItemAction(Action $action): Action
-    {
-        return $action
-            ->label('Tambah Barang')
-            ->icon('heroicon-m-plus')
-            ->modalHeading('Tambah Barang')
-            ->modalSubmitActionLabel('Simpan')
-            ->modalWidth('5xl')
-            ->schema(self::lineItemFields())
-            ->mountUsing(function (Schema $schema): void {
-                $schema->fill(self::defaultLineItemState());
-            })
-            ->action(function (array $data, Repeater $component): void {
-                self::upsertLineItemState($component, self::prepareLineItemPayload($data));
-            });
     }
 
     protected static function makeEditLineItemAction(): Action
@@ -560,7 +558,7 @@ class LiveChickenPurchaseOrderForm
         return $items[$itemKey] ?? null;
     }
 
-    protected static function appendLineItem(array $data, SchemaSet $set, SchemaGet $get): void
+    protected static function appendLineItem(array $data, SchemaSet $set, SchemaGet $get): string
     {
         $items = $get('line_items');
 
@@ -573,9 +571,11 @@ class LiveChickenPurchaseOrderForm
         $items[$itemKey] = self::prepareLineItemPayload($data);
 
         $set('line_items', $items);
+
+        return $itemKey;
     }
 
-    protected static function appendLineItemFromProduct(int $productId, SchemaSet $set, SchemaGet $get): void
+    protected static function appendLineItemFromProduct(int $productId, SchemaSet $set, SchemaGet $get): string
     {
         $data = self::defaultLineItemState();
         $data['product_id'] = $productId;
@@ -587,7 +587,43 @@ class LiveChickenPurchaseOrderForm
             $data['item_code'] = $details['code'] ?? null;
         }
 
-        self::appendLineItem($data, $set, $get);
+        return self::appendLineItem($data, $set, $get);
+    }
+
+    protected static function maybeTriggerPendingLineItemModal(SchemaSet $set, SchemaGet $get, Repeater $component): void
+    {
+        $pendingKey = $get('pending_line_item_key');
+
+        if (blank($pendingKey)) {
+            return;
+        }
+
+        $set('pending_line_item_key', null);
+
+        self::triggerLineItemEditorModal($pendingKey, $component);
+    }
+
+    protected static function triggerLineItemEditorModal(?string $itemKey, Repeater $component): void
+    {
+        if (blank($itemKey)) {
+            return;
+        }
+
+        $schemaComponentKey = $component->getKey();
+
+        if (blank($schemaComponentKey)) {
+            return;
+        }
+
+        $livewire = $component->getLivewire();
+
+        if (! method_exists($livewire, 'mountFormComponentAction')) {
+            return;
+        }
+
+        $livewire->mountFormComponentAction($schemaComponentKey, 'edit_line_item', [
+            'item' => $itemKey,
+        ]);
     }
 
     protected static function prepareLineItemPayload(array $data): array

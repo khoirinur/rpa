@@ -25,6 +25,26 @@ class LiveChickenPurchaseOrderResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'po_number';
 
+    public static function getNavigationLabel(): string
+    {
+        return 'PO Ayam Hidup';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Pembelian';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Master PO Ayam Hidup';
+    }
+
+    public static function getModelLabel(): string
+    {
+        return 'PO Ayam Hidup';
+    }
+
     public static function form(Schema $schema): Schema
     {
         return LiveChickenPurchaseOrderForm::configure($schema);

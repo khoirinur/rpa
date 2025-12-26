@@ -54,6 +54,10 @@ class SupplierForm
                             ->mask('99.999.999.9-999.999')
                             ->placeholder('00.000.000.0-000.000')
                             ->helperText('Optional jika pemasok belum memiliki NPWP.'),
+                        Toggle::make('is_active')
+                            ->label('Status Aktif')
+                            ->default(true)
+                            ->inline(false),
                     ])
                     ->columns(2),
                 Section::make('Kontak & Lokasi')
@@ -117,13 +121,6 @@ class SupplierForm
                             ->maxLength(60),
                     ])
                     ->columns(3),
-                Section::make('Status')
-                    ->schema([
-                        Toggle::make('is_active')
-                            ->label('Status Aktif')
-                            ->default(true)
-                            ->inline(false),
-                    ]),
             ]);
     }
 }
