@@ -28,7 +28,6 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Support\RawJs;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -192,12 +191,19 @@ class LiveChickenPurchaseOrderForm
                             }),
                         TextInput::make('global_discount_value')
                             ->label('Nilai Diskon Global')
-                            ->numeric()
+                            ->type('text')
                             ->default(0)
                             ->minValue(0)
                             ->prefix('Rp')
+                            ->formatStateUsing(fn ($state): ?string => $state === null
+                                ? null
+                                : number_format((float) $state, 0, ',', '.'))
+                            ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS))
+                            ->stripCharacters(['.', ','])
                             ->dehydrateStateUsing(fn ($state): float => self::sanitizeMoneyValue($state ?? 0))
-                            ->live()
+                            ->live(onBlur: true) // only sync after the field loses focus
                             ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
                                 self::syncLineItemSummaries($set, $get, $get('line_items') ?? []);
                             }),
@@ -219,18 +225,12 @@ class LiveChickenPurchaseOrderForm
                             ->options(fn () => self::getAllLiveBirdProductOptions())
                             ->dehydrated(false)
                             ->disabled(fn (SchemaGet $get): bool => blank($get('supplier_id')))
-                            ->getOptionLabelUsing(fn (?int $value): ?string => self::getLiveBirdProductLabel($value))
                             ->afterStateUpdated(function (?int $state, SchemaSet $set, SchemaGet $get, Select $component): void {
                                 if (! $state) {
                                     return;
                                 }
 
                                 $payload = self::buildPendingLineItemPayloadFromProduct($state);
-
-                                Log::debug('[PO][debug] product selected, opening pending modal', [
-                                    'productId' => $state,
-                                    'itemName' => $payload['item_name'] ?? null,
-                                ]);
 
                                 $set('line_item_search', null);
 
@@ -239,11 +239,6 @@ class LiveChickenPurchaseOrderForm
                                 if ($lineItemsComponent && self::triggerPendingLineItemModal($payload, $lineItemsComponent)) {
                                     return;
                                 }
-
-                                Log::debug('[PO][debug] pending modal deferred until repeater ready', [
-                                    'productId' => $state,
-                                    'hasLineItemsComponent' => (bool) $lineItemsComponent,
-                                ]);
 
                                 $set('pending_line_item_payload', $payload);
                             })
@@ -283,35 +278,72 @@ class LiveChickenPurchaseOrderForm
 
         $summarySection = Section::make('Ringkasan Kuantitas & Catatan')
             ->schema([
-                        TextInput::make('total_quantity_ea')
+                        Hidden::make('total_quantity_ea')
+                            ->default(0),
+                        TextInput::make('total_quantity_ea_display')
                             ->label('Total Ekor')
                             ->readOnly()
-                            ->default('0'),
-                        TextInput::make('total_weight_kg')
+                            ->type('text')
+                            ->default('0')
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn ($state): string => self::formatQuantityValue((float) self::sanitizeMoneyValue($state ?? 0))),
+                        Hidden::make('total_weight_kg')
+                            ->default(0),
+                        TextInput::make('total_weight_kg_display')
                             ->label('Total Berat (Kg)')
                             ->readOnly()
-                            ->default('0'),
-                        TextInput::make('subtotal')
+                            ->type('text')
+                            ->default('0')
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn ($state): string => self::formatQuantityValue((float) self::sanitizeMoneyValue($state ?? 0))),
+                        Hidden::make('subtotal')
+                            ->default(0),
+                        TextInput::make('subtotal_display')
                             ->label('Subtotal')
                             ->readOnly()
-                            ->default(0)
-                            ->prefix('Rp'),
-                        TextInput::make('discount_total')
+                            ->type('text')
+                            ->default('0')
+                            ->dehydrated(false)
+                            ->prefix('Rp')
+                            ->formatStateUsing(fn ($state): ?string => $state === null
+                                ? null
+                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
+                        Hidden::make('discount_total')
+                            ->default(0),
+                        TextInput::make('discount_total_display')
                             ->label('Total Diskon')
                             ->readOnly()
-                            ->default(0)
-                            ->prefix('Rp'),
-                        TextInput::make('tax_total')
+                            ->type('text')
+                            ->default('0')
+                            ->dehydrated(false)
+                            ->prefix('Rp')
+                            ->formatStateUsing(fn ($state): ?string => $state === null
+                                ? null
+                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
+                        Hidden::make('tax_total')
+                            ->default(0),
+                        TextInput::make('tax_total_display')
                             ->label('Total Pajak')
                             ->readOnly()
-                            ->default(0)
-                            ->prefix('Rp'),
-                        TextInput::make('grand_total')
+                            ->type('text')
+                            ->default('0')
+                            ->dehydrated(false)
+                            ->prefix('Rp')
+                            ->formatStateUsing(fn ($state): ?string => $state === null
+                                ? null
+                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
+                        Hidden::make('grand_total')
+                            ->default(0),
+                        TextInput::make('grand_total_display')
                             ->label('Total Akhir')
                             ->readOnly()
-                            ->default(0)
-                            ->prefix('Rp'),
-                        
+                            ->type('text')
+                            ->default('0')
+                            ->dehydrated(false)
+                            ->prefix('Rp')
+                            ->formatStateUsing(fn ($state): ?string => $state === null
+                                ? null
+                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
                         ])
                         ->columns(3)
                         ->columnSpanFull();
@@ -545,10 +577,6 @@ JS
             ->extraAttributes(['data-row-trigger-only' => true])
             ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
                 if (! empty($arguments['pending']) && is_array($arguments['payload'] ?? null)) {
-                    Log::debug('[PO][debug] mounting pending line item modal', [
-                        'productId' => $arguments['payload']['product_id'] ?? null,
-                    ]);
-
                     $schema->fill($arguments['payload']);
 
                     return;
@@ -557,11 +585,6 @@ JS
                 $itemKey = $arguments['item'] ?? null;
                 $state = self::getLineItemStateByKey($component, $itemKey) ?? self::defaultLineItemState();
 
-                Log::debug('[PO][debug] mounting line item modal', [
-                    'itemKey' => $itemKey,
-                    'isExisting' => filled($itemKey),
-                ]);
-
                 $schema->fill($state);
             })
             ->action(function (array $data, array $arguments, Repeater $component): void {
@@ -569,29 +592,17 @@ JS
                 $isPending = (bool) ($arguments['pending'] ?? false);
 
                 if ($arguments['delete_line_item'] ?? false) {
-                    Log::debug('[PO][debug] delete_line_item clicked', [
-                        'itemKey' => $itemKey,
-                    ]);
                     self::removeLineItemState($component, $itemKey);
 
                     return;
                 }
 
                 if ($isPending) {
-                    Log::debug('[PO][debug] pending line item save', [
-                        'productId' => $data['product_id'] ?? null,
-                    ]);
-
                     $data['__draft'] = false;
                     self::upsertLineItemState($component, self::prepareLineItemPayload($data));
 
                     return;
                 }
-
-                Log::debug('[PO][debug] line_item_save clicked', [
-                    'itemKey' => $itemKey,
-                    'isExisting' => filled($itemKey),
-                ]);
 
                 self::upsertLineItemState($component, self::prepareLineItemPayload($data), $itemKey);
             })
@@ -663,15 +674,7 @@ JS
 
         $set('pending_line_item_payload', null);
 
-        Log::debug('[PO][debug] pending payload detected, triggering modal', [
-            'productId' => $payload['product_id'] ?? null,
-        ]);
-
         if (! self::triggerPendingLineItemModal($payload, $component)) {
-            Log::warning('[PO][debug] pending modal trigger failed, payload restored', [
-                'productId' => $payload['product_id'] ?? null,
-            ]);
-
             $set('pending_line_item_payload', $payload);
         }
     }
@@ -687,10 +690,6 @@ JS
             $data['item_name'] = $details['name'] ?? null;
             $data['item_code'] = $details['code'] ?? null;
             $data['unit'] = self::resolveProductUnitCode($details['unit_id'] ?? null);
-        } else {
-            Log::warning('[PO][debug] live bird product details missing', [
-                'productId' => $productId,
-            ]);
         }
 
         $data['__draft'] = true;
@@ -721,10 +720,6 @@ JS
         $livewire = $component->getLivewire();
 
         if (blank($schemaComponentKey) || ! $livewire) {
-            Log::warning('[PO][debug] pending modal guard failed', [
-                'hasSchemaComponentKey' => (bool) $schemaComponentKey,
-                'hasLivewire' => (bool) $livewire,
-            ]);
             return false;
         }
 
@@ -739,15 +734,9 @@ JS
                     'schemaComponent' => $schemaComponentKey,
                 ]);
 
-                Log::debug('[PO][debug] pending modal opened via mountAction', [
-                    'productId' => $payload['product_id'] ?? null,
-                ]);
-
                 return true;
             } catch (Throwable $exception) {
-                Log::error('[PO][debug] mountAction failed for pending modal', [
-                    'message' => $exception->getMessage(),
-                ]);
+                report($exception);
             }
         }
 
@@ -759,16 +748,8 @@ JS
                 'context' => ['schemaComponent' => $schemaComponentKey],
             ]);
 
-            Log::debug('[PO][debug] pending modal dispatched via browser event', [
-                'productId' => $payload['product_id'] ?? null,
-            ]);
-
             return true;
         }
-
-        Log::warning('[PO][debug] pending modal trigger failed', [
-            'productId' => $payload['product_id'] ?? null,
-        ]);
 
         return false;
     }
@@ -806,12 +787,23 @@ JS
             $globalDiscountValue
         );
 
-        $set('total_quantity_ea', (string) $summary['total_quantity_ea']);
-        $set('total_weight_kg', (string) $summary['total_weight_kg']);
+        $set('total_quantity_ea', $summary['total_quantity_ea']);
+        $set('total_quantity_ea_display', self::formatQuantityValue($summary['total_quantity_ea']));
+
+        $set('total_weight_kg', $summary['total_weight_kg']);
+        $set('total_weight_kg_display', self::formatQuantityValue($summary['total_weight_kg']));
+
         $set('subtotal', $summary['subtotal']);
+        $set('subtotal_display', number_format($summary['subtotal'], 0, ',', '.'));
+
         $set('discount_total', $summary['discount_total']);
+        $set('discount_total_display', number_format($summary['discount_total'], 0, ',', '.'));
+
         $set('tax_total', $summary['tax_total']);
+        $set('tax_total_display', number_format($summary['tax_total'], 0, ',', '.'));
+
         $set('grand_total', $summary['grand_total']);
+        $set('grand_total_display', number_format($summary['grand_total'], 0, ',', '.'));
     }
 
     protected static function calculateLineItemSummaries(
@@ -931,13 +923,6 @@ JS
         return self::$liveBirdOptionCache;
     }
 
-    protected static function getLiveBirdProductLabel(?int $productId): ?string
-    {
-        $details = $productId ? self::getLiveBirdProductDetails($productId) : null;
-
-        return $details ? sprintf('%s · %s', $details['code'], $details['name']) : null;
-    }
-
     protected static function getLiveBirdProductDetails(?int $productId): ?array
     {
         if (! $productId) {
@@ -1025,8 +1010,40 @@ JS
         $sign = str_starts_with($numericString, '-') ? -1 : 1;
         $numericString = ltrim($numericString, '-');
 
-        $normalized = str_replace('.', '', $numericString);
-        $normalized = str_replace(',', '.', $normalized);
+        $lastDot = strrpos($numericString, '.');
+        $lastComma = strrpos($numericString, ',');
+        $decimalSeparator = null;
+
+        if ($lastDot !== false && $lastComma !== false) {
+            $decimalSeparator = $lastComma > $lastDot ? ',' : '.';
+        } elseif ($lastComma !== false) {
+            $fractionLength = strlen($numericString) - $lastComma - 1;
+            if ($fractionLength > 0 && $fractionLength <= 2) {
+                $decimalSeparator = ',';
+            }
+        } elseif ($lastDot !== false) {
+            $fractionLength = strlen($numericString) - $lastDot - 1;
+            if ($fractionLength > 0 && $fractionLength <= 2) {
+                $decimalSeparator = '.';
+            }
+        }
+
+        if ($decimalSeparator !== null) {
+            $decimalPosition = $decimalSeparator === '.' ? $lastDot : $lastComma;
+            $integerPart = substr($numericString, 0, $decimalPosition);
+            $fractionalPart = substr($numericString, $decimalPosition + 1);
+
+            $integerDigits = preg_replace('/[^0-9]/', '', $integerPart) ?? '';
+            $fractionalDigits = preg_replace('/[^0-9]/', '', $fractionalPart) ?? '';
+
+            $normalized = $integerDigits . '.' . $fractionalDigits;
+        } else {
+            $normalized = preg_replace('/[^0-9]/', '', $numericString) ?? '';
+        }
+
+        if ($normalized === '' || $normalized === '.') {
+            return 0.0;
+        }
 
         return $sign * (float) $normalized;
     }

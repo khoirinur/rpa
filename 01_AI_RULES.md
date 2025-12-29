@@ -13,6 +13,15 @@ Sistem ini adalah **Disassembly Manufacturing** (1 Input -> Banyak Output), BUKA
 - **Satuan:** Pembelian menggunakan DUA satuan: **Berat (Kg)** dan **Ekor**. Keduanya harus dicatat di database.
 - **Gudang:** Multi-warehouse (Pabrik, Pagu, Tanjung, Candi). Stok harus dipisah per `warehouse_id`.
 
+### 2.1 Pola Form & Input yang Harus Diulang
+Digunakan sebagai standar untuk modul **Pembelian Ayam Hidup** dan modul lanjutan seperti **Work Order (Penyembelihan)**, **Inventory & Distribution**, dan turunan lain.
+- **Gate Entity Terlebih Dahulu:** Semua komponen detail (barang/hasil produksi) wajib dikunci sampai entitas utama dipilih (contoh: supplier, batch, atau gudang sumber).
+- **Pencarian Barang dengan Modal:** Input barang memakai komponen pencarian (searchable select) yang, setelah memilih item, selalu membuka modal detail untuk mengisi Qty, Satuan (Kg/Ekor), harga, diskon, pajak, dan catatan. Jangan mengijinkan edit inline tanpa modal.
+- **Tab Fitur Tambahan:** Minimal ada tab terpisah untuk informasi tambahan (contoh: `Detail PO`, `Pembayaran & Pajak`, atau tab biaya lainnya). Modul baru harus mengikuti pola tab ini untuk memisahkan input dasar vs opsi lanjutan.
+- **Ringkasan dengan Hidden + Display:** Semua angka ringkasan (qty, berat, subtotal, diskon, pajak, total akhir) disimpan dalam field tersembunyi untuk nilai mentah dan ditampilkan di field read-only terformat. Ini wajib agar konsisten untuk tiap modul.
+- **Masking & Sanitasi:** Input uang memakai masker `RawJs $money`, diikuti sanitizer server-side sebelum perhitungan; pastikan logika ini direuse.
+- **Audit & Favorit:** Modal barang, biaya tambahan, dan ringkasan harus tetap men-trigger `LogsActivity` serta mendukung penyimpanan konfigurasi favorit bila konteksnya mirip PO.
+
 ### 3. Coding Standards & Safety
 - **Race Condition:** Gunakan `DB::transaction(function() { ... })` dan `lockForUpdate()` pada logic pengurangan stok. JANGAN gunakan Queue untuk transaksi user (harus synchronous).
 - **HPP (COGS):** Jangan hardcode logic HPP. Siapkan struktur agar biaya ayam hidup bisa dialokasikan persentase-nya ke produk turunan.
