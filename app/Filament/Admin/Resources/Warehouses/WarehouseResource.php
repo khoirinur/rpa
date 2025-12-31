@@ -24,7 +24,7 @@ class WarehouseResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Daftar Gudang';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::MapPin;
 
     protected static ?string $recordTitleAttribute = 'name';
 

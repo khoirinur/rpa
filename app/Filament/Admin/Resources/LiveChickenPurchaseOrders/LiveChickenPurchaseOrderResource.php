@@ -21,7 +21,9 @@ class LiveChickenPurchaseOrderResource extends Resource
 {
     protected static ?string $model = LiveChickenPurchaseOrder::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::DocumentCurrencyDollar;
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'po_number';
 

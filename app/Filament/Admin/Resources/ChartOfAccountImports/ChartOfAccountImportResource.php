@@ -20,7 +20,7 @@ class ChartOfAccountImportResource extends Resource
 {
     protected static ?string $model = ChartOfAccountImport::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowDownTray;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowDownOnSquareStack;
 
     protected static ?string $recordTitleAttribute = 'file_name';
 

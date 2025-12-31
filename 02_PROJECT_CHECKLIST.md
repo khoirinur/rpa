@@ -80,47 +80,100 @@ Status Legend:
 - [x] **Super Admin Access:** Pastikan peran `super_admin` memiliki akses penuh dan menu Filament Shield terlihat.
 
 ## Phase 2: Purchasing & Inbound (Hulu)
-- [ ] **Pembelian Ayam Hidup:**
-    - [ ] **Header Form**
-        - [ ] Supplier (wajib) menjadi gate bagi seluruh komponen barang & biaya.
-        - [ ] Alamat kirim otomatis terisi dari supplier dan dapat disimpan ulang saat diedit.
-        - [ ] Tanggal PO (wajib) dan Tanggal Kirim (opsional) dengan validasi rentang.
-        - [ ] Gudang tujuan (wajib) untuk memastikan stok masuk gudang yang benar.
-        - [ ] No. PO auto-generate namun masih bisa diedit bila perlu.
-    - [ ] **Validasi Konteks**
-        - [ ] Tidak boleh mencari atau menambahkan barang sebelum memilih supplier.
-        - [ ] Semua field wajib di header harus terisi sebelum tab detail aktif.
-    - [ ] **Rincian Barang**
-        - [ ] Komponen cari barang memunculkan modal detail ketika dipilih.
-        - [ ] Kolom editable: Nama item, Qty + pilihan satuan (Ekor/Kg), Harga Satuan, Diskon (persen atau nominal, max 100% & <= harga), Checkbox Pajak 11%, Catatan opsional.
-        - [ ] Subtotal otomatis, tersedia aksi duplikat/baris baru/hapus.
-    - [ ] **Info Lainnya**
-        - [ ] Syarat pembayaran dengan preset Manual, Net 7/15/30/45/60, COD default, lengkap dengan deskripsi.
-        - [ ] Checkbox pajak (Kena vs Termasuk) mengatur cara hitung.
-        - [ ] Keterangan bebas serta bidang FOB (alamat tujuan + titik pengiriman) opsional.
-    - [ ] **Biaya Lainnya (Opsional)**
-        - [ ] Pencarian COA mendukung kode/nama, memunculkan modal biaya.
-        - [ ] Modal berisi nama biaya editable, nominal, catatan, dan checkbox alokasi (membagi biaya rata terhadap qty).
-    - [ ] **Ringkasan & Footer**
-        - [ ] Ringkasan harga: Subtotal, Diskon global (persen/nominal), Pajak (modal untuk memilih DPP 100%, 11/12, 11/12 10%, 40%, 30%, 20%, 10% dan tarif 0%, 10%, 11%, 12%), Total akhir.
-        - [ ] Panel kanan: Simpan / Simpan Draft, modal dokumen agnostik (multi-file jpg/png/pdf/docx/xlsx, 5MB per file) dengan daftar file + aksi download/hapus.
-        - [ ] Favorit PO: simpan konfigurasi (header, barang, biaya, info lainnya) dan muat ulang favorit ke form aktif.
-    - [ ] **Validasi Sebelum Simpan**
-        - [ ] Minimal satu barang tersimpan.
-        - [ ] Qty dan harga satuan harus > 0.
-        - [ ] Diskon tidak boleh negatif atau melampaui harga akhir.
-    - [ ] **Perhitungan Tambahan**
-        - [ ] Hitung susut jalan otomatis dari selisih berat kirim vs terima.
-    - [ ] **Output**
-        - [ ] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
-- [ ] **Penerimaan Barang:** Form penerimaan dengan validasi PO.
+- [x] **Pembelian Ayam Hidup:**
+    - [x] **Header Form**
+        - [x] Supplier (wajib) menjadi gate bagi seluruh komponen barang & biaya.
+        - [x] Alamat kirim otomatis terisi dari supplier dan dapat disimpan ulang saat diedit.
+        - [x] Tanggal PO (wajib) dan Tanggal Kirim (opsional) dengan validasi rentang.
+        - [x] Gudang tujuan (wajib) untuk memastikan stok masuk gudang yang benar.
+        - [x] No. PO auto-generate namun masih bisa diedit bila perlu.
+    - [x] **Validasi Konteks**
+        - [x] Tidak boleh mencari atau menambahkan barang sebelum memilih supplier.
+        - [x] Semua field wajib di header harus terisi sebelum tab detail aktif.
+    - [x] **Rincian Barang**
+        - [x] Komponen cari barang memunculkan modal detail ketika dipilih.
+        - [x] Kolom editable: Nama item, Qty + pilihan satuan (Ekor/Kg), Harga Satuan, Diskon (persen atau nominal, max 100% & <= harga), Checkbox Pajak 11%, Catatan opsional.
+        - [x] Subtotal otomatis, tersedia aksi duplikat/baris baru/hapus.
+    - [x] **Info Lainnya**
+        - [x] Syarat pembayaran dengan preset Manual, Net 7/15/30/45/60, COD default, lengkap dengan deskripsi.
+        - [x] Checkbox pajak (Kena vs Termasuk) mengatur cara hitung.
+        - [x] Keterangan bebas serta bidang FOB (alamat tujuan + titik pengiriman) opsional.
+    - [x] **Biaya Lainnya (Opsional)**
+        - [x] Pencarian COA mendukung kode/nama, memunculkan modal biaya.
+        - [x] Modal berisi nama biaya editable, nominal, catatan, dan checkbox alokasi (membagi biaya rata terhadap qty).
+    - [x] **Ringkasan & Footer**
+        - [x] Ringkasan harga: Subtotal, Diskon global (persen/nominal), Pajak (modal untuk memilih DPP 100%, 11/12, 11/12 10%, 40%, 30%, 20%, 10% dan tarif 0%, 10%, 11%, 12%), Total akhir.
+        - [x] Panel kanan: Simpan / Simpan Draft, modal dokumen agnostik (multi-file jpg/png/pdf/docx/xlsx, 5MB per file) dengan daftar file + aksi download/hapus.
+        - [x] Favorit PO: simpan konfigurasi (header, barang, biaya, info lainnya) dan muat ulang favorit ke form aktif.
+    - [x] **Validasi Sebelum Simpan**
+        - [x] Minimal satu barang tersimpan.
+        - [x] Qty dan harga satuan harus > 0.
+        - [x] Diskon tidak boleh negatif atau melampaui harga akhir.
+    - [x] **Perhitungan Tambahan**
+        - [x] Hitung susut jalan otomatis dari selisih berat kirim vs terima.
+    - [x] **Output**
+        - [x] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
+- [ ] **Penerimaan Barang:**
+    - [ ] **Validasi PO & Header**
+        - [ ] Pilih PO yang sudah disetujui (statusnya sudah approved) sebagai sumber penerimaan.
+        - [ ] Auto-fill supplier, gudang tujuan, dan jadwal kirim dari PO.
+        - [ ] Izinkan override alamat kirim dengan log perubahan.
+    - [ ] **Pemeriksaan Kedatangan**
+        - [ ] Checklist kendaraan, nomor SJ pemasok, dan suhu kedatangan.
+        - [ ] Catat waktu tiba dan petugas pemeriksa.
+        - [ ] Upload foto dokumen pendukung (max 5MB per file, multi-upload).
+    - [ ] **Detail Item Diterima**
+        - [ ] Repeater item yang ditarik dari PO dengan qty pesan vs qty terima.
+        - [ ] Field toleransi susut, catatan QC, dan alasan selisih.
+        - [ ] Aksi split baris untuk pecah batch atau satuan.
+    - [ ] **Penanganan Selisih & Retur**
+        - [ ] Tandai item rusak/kurang untuk dibuatkan retur otomatis.
+        - [ ] Mapping COA biaya klaim atau diskon kredit.
+        - [ ] Notifikasi ke tim purchasing melalui Filament notification.
+    - [ ] **Biaya & Dokumen Pendukung**
+        - [ ] Input biaya bongkar, sewa alat, atau inspeksi dengan COA.
+        - [ ] Lampirkan dokumen hasil timbang dan foto kondisi barang.
+        - [ ] Simpan riwayat versi dokumen ketika diedit ulang.
+    - [ ] **Penyelesaian & Posting**
+        - [ ] Validasi minimal satu item diterima dan qty > 0.
+        - [ ] Update status PO (Partial/Complete) secara otomatis.
+        - [ ] Posting stok masuk ke gudang tujuan dan log aktivitas.
 - [ ] **Stock In:** Form pencatatan masuk barang ke gudang.
 
 ## Phase 3: Production (Inti)
 - [ ] **Work Order (Penyembelihan):**
-    - [ ] Input: Batch Ayam Hidup (Kg & Ekor).
-    - [ ] Output Repeater: List hasil potong.
-    - [ ] Validasi Yield & Susut.
+    - [ ] **Pra-Produksi & Penjadwalan**
+        - [ ] Pilih tanggal proses, shift, dan operator utama.
+        - [ ] Autocomplete sumber batch dari PO ayam hidup atau stok kandang.
+        - [ ] Validasi gudang sumber dan tujuan sebelum work order dibuat.
+    - [ ] **Input Ayam Hidup**
+        - [ ] Catat berat datang (Kg) dan jumlah ekor per batch.
+        - [ ] Dukung multi-truk dengan toleransi susut masing-masing.
+        - [ ] Kunci input ketika work order disetujui supervisor.
+    - [ ] **Rincian Pemotongan**
+        - [ ] Repeater hasil potong dengan produk, tipe potong, satuan, dan yield target.
+        - [ ] Field Qty hasil, berat hasil, grade kualitas, dan catatan QC per baris.
+        - [ ] Tombol duplikat baris serta preset template komposisi potong.
+    - [ ] **Byproduct & Limbah**
+        - [ ] Checklist hasil samping (jeroan, bulu, darah, limbah basah) beserta gudang tujuan.
+        - [ ] Mapping COA biaya limbah dan opsi penjualan langsung ke modul hilir.
+        - [ ] Catatan sanitasi & disposal khusus jika melebihi ambang.
+    - [ ] **Validasi Yield & Susut**
+        - [ ] Hitung yield aktual vs target berdasarkan Kg dan ekor.
+        - [ ] Terapkan toleransi khusus per jenis produk dengan indikator warna.
+        - [ ] Wajib isi alasan bila susut melewati batas.
+    - [ ] **Dokumentasi & Output**
+        - [ ] Upload foto dokumen proses (jpg/png/pdf) maksimal 5MB per file.
+        - [ ] Generate PDF Work Order lengkap dengan tanda tangan digital.
+        - [ ] Kirim aktivitas ke Activity Log serta notifikasi Filament.
+- [ ] **QC Release & Transfer**
+    - [ ] QC checklist suhu inti, tekstur, dan kebersihan area produksi.
+    - [ ] Approval QC sebelum stok masuk gudang siap jual.
+    - [ ] Transfer otomatis ke stok WIP atau produk jadi setelah approval.
+- [ ] **WIP Consumption Tracking**
+    - [ ] Catat bahan pembantu (es, plastik, bumbu) yang dipakai selama proses.
+    - [ ] Posting biaya ke COA terkait untuk analisa cost per kg.
+    - [ ] Sinkronkan konsumsi ke kartu stok WIP dan Activity Log.
 
 ## Phase 4: Inventory & Distribution
 - [ ] **Transfer Stok:** Form pemindahan barang antar gudang.

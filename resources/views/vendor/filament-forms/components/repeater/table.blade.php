@@ -1,6 +1,7 @@
 @php
     use Filament\Actions\Action;
     use Filament\Support\Enums\Alignment;
+    use Illuminate\Contracts\Support\Arrayable;
     use Illuminate\View\ComponentAttributeBag;
 
     $fieldWrapperView = $getFieldWrapperView();
@@ -106,6 +107,12 @@
                     >
                         @foreach ($items as $itemKey => $item)
                             @php
+                                $itemState = $item->getRawState();
+
+                                if ($itemState instanceof Arrayable) {
+                                    $itemState = $itemState->toArray();
+                                }
+
                                 $visibleExtraItemActions = array_filter(
                                     $extraItemActions,
                                     function (Action $action) use ($itemKey, $rowTriggerOnlyAttribute): bool {
@@ -140,7 +147,11 @@
                                     x-on:click="
                                         $wire.mountAction(
                                             @js($rowClickAction),
-                                            { item: @js($itemKey) },
+                                            {
+                                                item: @js($itemKey),
+                                                buffer_key: @js($itemState['buffer_key'] ?? null),
+                                                payload: @js($itemState),
+                                            },
                                             { schemaComponent: @js($key) },
                                         )
                                     "
@@ -205,7 +216,11 @@
                                                             x-on:click.stop="
                                                                 $wire.mountAction(
                                                                     @js($rowClickAction),
-                                                                    { item: @js($itemKey) },
+                                                                    {
+                                                                        item: @js($itemKey),
+                                                                        buffer_key: @js($itemState['buffer_key'] ?? null),
+                                                                        payload: @js($itemState),
+                                                                    },
                                                                     { schemaComponent: @js($key) },
                                                                 )
                                                             "

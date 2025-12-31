@@ -80,8 +80,20 @@ class LiveChickenPurchaseOrder extends Model
 
     protected static function generateNumber(): string
     {
-        $prefix = 'LCP-' . now()->format('ymd');
-        $sequence = (self::whereDate('created_at', today())->count() + 1);
+        $prefix = 'LCPO-' . now()->format('ymd');
+
+        $latestNumber = self::withTrashed()
+            ->where('po_number', 'like', $prefix . '-%')
+            ->orderByDesc('po_number')
+            ->value('po_number');
+
+        $sequence = 1;
+
+        if ($latestNumber) {
+            $parts = explode('-', $latestNumber);
+            $lastSegment = end($parts);
+            $sequence = ((int) $lastSegment) + 1;
+        }
 
         return sprintf('%s-%04d', $prefix, $sequence);
     }
