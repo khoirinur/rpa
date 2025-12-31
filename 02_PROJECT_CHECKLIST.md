@@ -111,8 +111,12 @@ Status Legend:
         - [x] Diskon tidak boleh negatif atau melampaui harga akhir.
     - [x] **Perhitungan Tambahan**
         - [x] Hitung susut jalan otomatis dari selisih berat kirim vs terima.
-    - [x] **Output**
-        - [x] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
+    - [ ] **Output PO**
+        - [x] Membuat Tombol Cetak Dokumen, yang akan membuka halaman baru dengan tampilan siap cetak.
+        - [ ] Membuat view Cetak dokumen terpisah yang berisi detail PO.
+        - [ ] Di view Cetak dokumen, terdapat :
+            - [ ] Fitur seperti file #contoh-view.html
+        - [ ] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
 - [ ] **Penerimaan Barang:**
     - [ ] **Validasi PO & Header**
         - [ ] Pilih PO yang sudah disetujui (statusnya sudah approved) sebagai sumber penerimaan.
