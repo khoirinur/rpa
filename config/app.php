@@ -29,6 +29,11 @@ return [
 
     'key' => env('APP_KEY'),
 
+    'company_name' => env('company_name', 'PT Surya Kencana Slaughterhouse'),
+    'company_address' => env('company_address', 'Jl. Totok Kerot, Suko, Menang, Kec. Pagu Kab. Kediri Jawa Timur 64183 Indonesia'),
+    'company_city' => env('company_city', 'Kediri'),
+    'company_phone' => env('company_phone', '+62 812 1579 9522'),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))

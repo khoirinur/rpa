@@ -121,6 +121,13 @@ class LiveChickenPurchaseOrdersTable
                     ->modalHeading('Setujui PO ini?')
                     ->visible(fn (LiveChickenPurchaseOrder $record): bool => $record->status === LiveChickenPurchaseOrder::STATUS_SUBMITTED)
                     ->action(fn (LiveChickenPurchaseOrder $record): bool => $record->update(['status' => LiveChickenPurchaseOrder::STATUS_APPROVED])),
+                Action::make('print')
+                    ->label('Cetak')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->url(fn (LiveChickenPurchaseOrder $record): string => route('live-chicken-purchase-orders.print', $record))
+                    ->openUrlInNewTab()
+                    ->visible(fn (): bool => auth()->user()?->can('view_live_chicken_purchase_order') ?? false),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

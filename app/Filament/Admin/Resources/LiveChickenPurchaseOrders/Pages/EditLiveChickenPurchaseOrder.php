@@ -19,6 +19,12 @@ class EditLiveChickenPurchaseOrder extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('print')
+                ->label('Cetak PO')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->url(fn (): string => route('live-chicken-purchase-orders.print', $this->record))
+                ->openUrlInNewTab(true),
             Action::make('process-to-goods-receipt')
                 ->label('Proses ke Penerimaan')
                 ->icon('heroicon-o-arrow-top-right-on-square')
