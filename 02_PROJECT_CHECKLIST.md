@@ -179,7 +179,21 @@ Status Legend:
     - [ ] Sinkronkan konsumsi ke kartu stok WIP dan Activity Log.
 
 ## Phase 4: Inventory & Distribution
-- [ ] **Transfer Stok:** Form pemindahan barang antar gudang.
+- [ ] **Penyesuaian Persediaan:** 
+    - [ ] **Header Form**
+        - [ ] Tanggal penyesuaian (wajib) dengan validasi tidak boleh di masa depan. (default hari ini)
+    - [ ] **Validasi Konteks**
+        - [ ] Tidak boleh mencari atau menambahkan barang sebelum menentukan tanggal.
+        - [ ] Semua field wajib di header harus terisi sebelum tab detail aktif.
+    - [ ] **Rincian Barang**
+        - [ ] Komponen cari barang memunculkan modal detail ketika dipilih.
+        - [ ] Kolom editable: Nama item, Tipe Penyesuaian (Penambahan, Pengurangan, Atur Stok), Kuantitas, Satuan, Gudang Tujuan (Otimatis Terisi Gudang Pagu), Keterangan, Stok Saat Ini (Readable).
+        - [ ] Jika Tipe Penyesuaian = Penambahan, Munculkan input Biaya Satuan dan Total Biaya.
+    - [ ] **Info Lainnya**
+        - [ ] Akun Penyesuaian (wajib) eagerload hanya untuk 3 COA berikut default: 300001 (300001, 8212, 510103).
+        - [ ] Keterangan.
+    - [ ] **Ringkasan & Footer**
+        - [ ] Total Harga Penyesuaian (hanya jika ada penambahan stok dengan biaya).
 - [ ] **Surat Jalan:** Generate PDF Surat Jalan untuk sopir.
 - [ ] **Stok Opname & Kartu Stok:** Fitur Export Excel untuk audit stok.
 
