@@ -113,7 +113,7 @@ Status Legend:
         - [x] Hitung susut jalan otomatis dari selisih berat kirim vs terima.
     - [ ] **Output PO**
         - [x] Membuat Tombol Cetak Dokumen, yang akan membuka halaman baru dengan tampilan siap cetak.
-        - [ ] Membuat view Cetak dokumen terpisah yang berisi detail PO.
+        - [ ] Membuat view Cetak dokumen terpisah yang berisi detail PO di route /live-chicken-purchase-orders/{purchaseOrderId}/print.
         - [ ] Di view Cetak dokumen, terdapat :
             - [ ] Fitur seperti file #contoh-view.html
         - [ ] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
