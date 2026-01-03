@@ -11,14 +11,14 @@
         <div class="lcpo-shell">
             <div class="lcpo-bar">
                 <div>
-                    <p class="lcpo-label">Pratinjau Pesanan</p>
+                    <p class="lcpo-label">Print Preview</p>
                     <p class="lcpo-title" x-text="title || 'Pesanan Pembelian'"></p>
                 </div>
                 <div class="lcpo-actions">
                     <button type="button" class="lcpo-close" @click="close()">Tutup</button>
                 </div>
             </div>
-            <iframe x-ref="frame" class="lcpo-frame" :src="src" title="Pratinjau Pesanan" frameborder="0"></iframe>
+            <iframe x-ref="frame" class="lcpo-frame" :src="src" title="Print Preview" frameborder="0"></iframe>
         </div>
     </div>
 </div>

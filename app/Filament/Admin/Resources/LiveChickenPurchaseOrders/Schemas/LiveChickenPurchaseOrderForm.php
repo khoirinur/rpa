@@ -126,6 +126,7 @@ class LiveChickenPurchaseOrderForm
                         DatePicker::make('order_date')
                             ->label('Tanggal PO')
                             ->default(today())
+                            ->native(false)
                             ->required(),
                         DatePicker::make('delivery_date')
                             ->label('Tanggal Kirim')
@@ -874,7 +875,7 @@ JS
         return [
             'total_quantity_ea' => round($totals['total_quantity_ea'], 2),
             'total_weight_kg' => round($totals['total_weight_kg'], 2),
-            'subtotal' => round($netSubtotal, 2),
+            'subtotal' => round($totals['subtotal'], 2),
             'discount_total' => round($totals['discount_total'] + $globalDiscountAmount, 2),
             'tax_total' => round($taxTotal, 2),
             'grand_total' => round($grandTotal, 2),

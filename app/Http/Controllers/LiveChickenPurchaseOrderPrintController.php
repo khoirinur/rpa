@@ -91,7 +91,7 @@ class LiveChickenPurchaseOrderPrintController extends Controller
     {
         return Collection::make([
             ['Subtotal', $purchaseOrder->subtotal, 'currency'],
-            ['Total Diskon', $purchaseOrder->discount_total, 'currency'],
+            ['Diskon', $purchaseOrder->global_discount_value, 'currency'],
             ['Total Pajak', $purchaseOrder->tax_total, 'currency'],
             ['Total Akhir', $purchaseOrder->grand_total, 'currency'],
             ['Total Berat (Kg)', $purchaseOrder->total_weight_kg, 'quantity'],
@@ -183,7 +183,7 @@ class LiveChickenPurchaseOrderPrintController extends Controller
 
     protected function formatCurrency(float $value): string
     {
-        return 'Rp ' . number_format($value, 0, ',', '.');
+        return number_format($value, 0, ',', '.');
     }
 
     protected function formatQuantity(float $value): string

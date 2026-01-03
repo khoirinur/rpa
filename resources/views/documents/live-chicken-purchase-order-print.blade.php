@@ -70,8 +70,6 @@
         .header {
             display: flex;
             justify-content: space-between;
-            border-bottom: 3px solid #000;
-            padding-bottom: 16px;
         }
         .company-block {
             display: flex;
@@ -84,7 +82,7 @@
             object-fit: contain;
         }
         .company-name {
-            font-size: 14px;
+            font-size: 18px;
             font-weight: 700;
             margin: 0;
             letter-spacing: 0.05em;
@@ -116,11 +114,6 @@
         }
         .doc-meta td:first-child {
             padding-right: 16px;
-        }
-        .info-section {
-            margin-top: 18px;
-            border-bottom: 1px solid #000;
-            padding-bottom: 12px;
         }
         .info-row {
             display: flex;
@@ -159,7 +152,6 @@
             margin-top: 12px;
         }
         .notes {
-            margin-top: 16px;
             font-size: 12px;
         }
         table.summary-table {
@@ -227,9 +219,9 @@
         ]));
     @endphp
     <div class="controls">
-        <button id="btn-copy" type="button">📋 Salin Tampilan</button>
-        <button id="btn-download" type="button">💾 Unduh Gambar</button>
-        <button type="button" class="secondary" onclick="window.print()">🖨️ Cetak / PDF</button>
+        <button id="btn-copy" type="button">Salin Gambar</button>
+        <button id="btn-download" type="button">Unduh Gambar</button>
+        <button type="button" class="secondary" onclick="window.print()">Cetak / PDF</button>
     </div>
 
     <p id="clipboard-warning"></p>
@@ -317,18 +309,25 @@
             </tbody>
         </table>
         <div class="notes-summary">
-            <div class="signature-grid">
-                <div class="signature-cell">
-                    Bag. Pembelian
-                    <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+            <div class="">
+                <div class="notes">
+                    Keterangan :
+                    <br>
+                    {!! nl2br(e($metadata['notes'] ?? '-')) !!}
                 </div>
-                <div class="signature-cell">
-                    Menyetujui
-                    <div style="margin-top:80px; border-top:1px dotted #000;"></div>
-                </div>
-                <div class="signature-cell">
-                    Supplier
-                    <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                <div class="signature-grid">
+                    <div class="signature-cell">
+                        Bag. Pembelian,
+                        <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                    </div>
+                    <div class="signature-cell">
+                        Menyetujui,
+                        <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                    </div>
+                    <div class="signature-cell">
+                        Supplier,
+                        <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                    </div>
                 </div>
             </div>
             <div>
@@ -339,18 +338,14 @@
                             <td>{{ $row['formatted'] }}</td>
                         </tr>
                     @endforeach
-                    <tr>
+                    <tr style="border-top: solid 2px black">
                         <td><strong>Total setelah PPh</strong></td>
                         <td><strong>{{ $summary[3]['formatted'] ?? '—' }}</strong></td>
                     </tr>
                 </table>
             </div>
         </div>
-        <div class="notes">
-            Keterangan :
-            <br>
-            {!! nl2br(e($metadata['notes'] ?? '')) !!}
-        </div>
+        
         <div class="footer">
             <span>Dicetak pada {{ $metadata['document_generated_at'] ?? now()->translatedFormat('d/m/Y H:i') }}</span>
             <span>Aplikasi RPA SKMeat.ID</span>
