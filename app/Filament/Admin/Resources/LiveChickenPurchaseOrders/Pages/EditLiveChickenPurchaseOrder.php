@@ -23,8 +23,9 @@ class EditLiveChickenPurchaseOrder extends EditRecord
                 ->label('Cetak PO')
                 ->icon('heroicon-o-printer')
                 ->color('gray')
-                ->url(fn (): string => route('live-chicken-purchase-orders.print', $this->record))
-                ->openUrlInNewTab(true),
+                ->action(function (): void {
+                    $this->dispatch('live-chicken-po-print-open', url: route('live-chicken-purchase-orders.print', $this->record), title: $this->record->po_number);
+                }),
             Action::make('process-to-goods-receipt')
                 ->label('Proses ke Penerimaan')
                 ->icon('heroicon-o-arrow-top-right-on-square')

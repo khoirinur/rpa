@@ -113,7 +113,7 @@ class LiveChickenPurchaseOrderPrintController extends Controller
     {
         $options = [
             'manual' => 'Manual',
-            'cod' => 'C.O.D (Cash On Delivery)',
+            'cod' => '0 Hari (COD)',
             'net_7' => 'Net 7',
             'net_15' => 'Net 15',
             'net_30' => 'Net 30',

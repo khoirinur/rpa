@@ -41,7 +41,10 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
-            ->renderHook('panels::body.end', fn () => view('filament.hooks.line-item-modal-listener'))
+            ->renderHook('panels::body.end', function () {
+                return view('filament.hooks.line-item-modal-listener')->render()
+                    . view('filament.hooks.live-chicken-po-print-overlay')->render();
+            })
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

@@ -57,11 +57,11 @@
             border-radius: 12px;
             padding: 10px 16px;
             margin-bottom: 16px;
-            font-size: 0.9rem;
+            font-size: 0.9px;
         }
         #capture-area {
             background: #fff;
-            padding: 32px;
+            padding: 10px;
             border-radius: 18px;
             box-shadow: 0 25px 45px rgba(15, 23, 42, 0.1);
             max-width: 980px;
@@ -70,13 +70,13 @@
         .header {
             display: flex;
             justify-content: space-between;
-            gap: 24px;
             border-bottom: 3px solid #000;
             padding-bottom: 16px;
         }
         .company-block {
             display: flex;
             gap: 16px;
+            width: 60%;
         }
         .company-block img {
             width: 90px;
@@ -84,14 +84,14 @@
             object-fit: contain;
         }
         .company-name {
-            font-size: 1.2rem;
+            font-size: 14px;
             font-weight: 700;
             margin: 0;
             letter-spacing: 0.05em;
         }
         .company-address {
             margin: 6px 0 0;
-            font-size: 0.9rem;
+            font-size: 12px;
             color: var(--muted);
             white-space: pre-line;
         }
@@ -99,7 +99,7 @@
             text-align: right;
         }
         .doc-title {
-            font-size: 1.6rem;
+            font-size: 16px;
             font-weight: 700;
             border: 2px solid #000;
             padding: 6px 18px;
@@ -111,7 +111,7 @@
             width: 100%;
         }
         .doc-meta td {
-            font-size: 0.9rem;
+            font-size: 12px;
             padding: 2px 0;
         }
         .doc-meta td:first-child {
@@ -126,7 +126,7 @@
             display: flex;
             gap: 32px;
             flex-wrap: wrap;
-            font-size: 0.95rem;
+            font-size: 14px;
         }
         .info-label {
             font-weight: 600;
@@ -140,13 +140,13 @@
         table.detail-table th,
         table.detail-table td {
             border: 1px solid #000;
-            padding: 8px;
-            font-size: 0.9rem;
+            padding: 2px;
+            font-size: 12px;
         }
         table.detail-table th {
             background: var(--light-gray);
             text-align: center;
-            font-size: 0.85rem;
+            font-size: 12px;
         }
         table.detail-table td.numeric {
             text-align: right;
@@ -155,26 +155,20 @@
         .notes-summary {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 20px;
+            gap: 10px;
             margin-top: 12px;
         }
-        .notes-box {
-            border: 1px solid #000;
-            min-height: 120px;
-            padding: 12px;
-            font-size: 0.9rem;
-        }
-        .notes-box strong {
-            display: block;
-            margin-bottom: 8px;
+        .notes {
+            margin-top: 16px;
+            font-size: 12px;
         }
         table.summary-table {
             width: 100%;
             border-collapse: collapse;
         }
         table.summary-table td {
-            padding: 6px 0;
-            font-size: 0.9rem;
+            padding: 2px 0;
+            font-size: 12px;
         }
         table.summary-table td:last-child {
             text-align: right;
@@ -183,34 +177,56 @@
         .signature-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 24px;
+            border: 1px solid #000;
+            gap: 0px;
+            margin-top: 10px;
             text-align: center;
-            font-size: 0.9rem;
+            font-size: 12px;
         }
         .signature-cell {
-            border: 1px solid #000;
-            padding: 24px 12px 48px;
+            padding: 12px 12px 12px;
         }
         .footer {
             margin-top: 16px;
-            font-size: 0.8rem;
+            font-size: 12px;
             color: var(--muted);
             display: flex;
             justify-content: space-between;
         }
+
         @media print {
-            body { background: #fff; padding: 0; }
-            .controls { display: none; }
-            #clipboard-warning { display: none !important; }
-            #capture-area { box-shadow: none; border-radius: 0; }
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .controls,
+            #clipboard-warning {
+                display: none !important;
+            }
+
+            #capture-area {
+                max-width: none;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                border-radius: 0;
+                box-shadow: none;
+            }
         }
     </style>
 </head>
 <body>
+    @php
+        $companyAddress = trim($metadata['company_address'] ?? config('app.company_address', 'Jl. Totok Kerot, Suko, Menang, Kec. Pagu Kab. Kediri Jawa Timur 64183 Indonesia'));
+        $shippingAddress = trim($metadata['shipping_address'] ?? '') ?: null;
+        $companyAddressLines = array_values(array_filter([
+            $companyAddress,
+            $metadata['company_city'] ?? null,
+            ! empty($metadata['company_phone']) ? 'Telp: ' . $metadata['company_phone'] : null,
+        ]));
+    @endphp
     <div class="controls">
-        <a href="{{ route('filament.admin.resources.live-chicken-purchase-orders.index') }}" class="secondary">⬅️ Kembali ke Tabel</a>
-        <a href="{{ route('filament.admin.resources.live-chicken-purchase-orders.edit', $purchaseOrder) }}" class="secondary">✏️ Edit Pesanan</a>
         <button id="btn-copy" type="button">📋 Salin Tampilan</button>
         <button id="btn-download" type="button">💾 Unduh Gambar</button>
         <button type="button" class="secondary" onclick="window.print()">🖨️ Cetak / PDF</button>
@@ -224,15 +240,7 @@
                 <img src="{{ asset('logo.jpeg') }}" alt="Logo">
                 <div>
                     <p class="company-name">{{ strtoupper($metadata['company_name'] ?? config('app.company_name', 'Perusahaan Anda')) }}</p>
-                    <p class="company-address">
-                        {{ $metadata['company_address'] ?? config('app.company_address', 'Jl. Totok Kerot, Suko, Menang, Kec. Pagu Kab. Kediri Jawa Timur 64183 Indonesia') }}
-                        @if(!empty($metadata['company_city']))
-                            {{ $metadata['company_city'] }}
-                        @endif
-                        @if(!empty($metadata['company_phone']))
-                            Telp: {{ $metadata['company_phone'] }}
-                        @endif
-                    </p>
+                    <p class="company-address">{!! implode('<br>', array_map(fn ($line) => e(trim($line)), $companyAddressLines)) !!}</p>
                 </div>
             </div>
             <div class="doc-title-block">
@@ -240,20 +248,20 @@
                 <div class="doc-meta">
                     <table>
                         <tr>
-                            <td>Tanggal</td>
-                            <td>: {{ $metadata['order_date'] ?? '—' }}</td>
+                            <td>Tanggal :</td>
+                            <td>{{ $metadata['order_date'] ?? '—' }}</td>
                         </tr>
                         <tr>
-                            <td>Nomor</td>
-                            <td>: {{ $metadata['po_number'] ?? '—' }}</td>
+                            <td>Nomor :</td>
+                            <td>{{ $metadata['po_number'] ?? '—' }}</td>
                         </tr>
                         <tr>
-                            <td>Syarat Pembayaran</td>
-                            <td>: {{ $metadata['payment_term'] ?? '—' }}</td>
+                            <td>Syarat Pembayaran :</td>
+                            <td>{{ $metadata['payment_term'] ?? '—' }}</td>
                         </tr>
                         <tr>
-                            <td>Tanggal Kirim</td>
-                            <td>: {{ $metadata['delivery_date'] ?? '—' }}</td>
+                            <td>Tanggal Kirim :</td>
+                            <td>{{ $metadata['delivery_date'] ?? '—' }}</td>
                         </tr>
                     </table>
                 </div>
@@ -262,12 +270,12 @@
 
         <div class="info-section">
             <div class="info-row">
-                <div><span class="info-label">Kepada Yth.</span>: {{ $metadata['supplier_name'] ?? '—' }}</div>
+                <div><span class="info-label">Kepada Yth.</span>: <b>{{ $metadata['supplier_name'] ?? '—' }}</b></div>
             </div>
             <div class="info-row" style="margin-top: 6px;">
                 <div>
                     <span class="info-label">Alamat Kirim</span>:
-                    <span style="white-space: pre-line;">{{ $metadata['shipping_address'] ?? '—' }}</span>
+                    <span style="white-space: pre-line;">{{ $shippingAddress ?? '—' }}</span>
                 </div>
             </div>
         </div>
@@ -308,12 +316,19 @@
                 @endforelse
             </tbody>
         </table>
-
         <div class="notes-summary">
-            <div class="notes-box">
-                <strong>Keterangan :</strong>
-                <div style="min-height: 80px;">
-                    {!! nl2br(e($metadata['notes'] ?? '')) !!}
+            <div class="signature-grid">
+                <div class="signature-cell">
+                    Bag. Pembelian
+                    <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                </div>
+                <div class="signature-cell">
+                    Menyetujui
+                    <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                </div>
+                <div class="signature-cell">
+                    Supplier
+                    <div style="margin-top:80px; border-top:1px dotted #000;"></div>
                 </div>
             </div>
             <div>
@@ -331,25 +346,14 @@
                 </table>
             </div>
         </div>
-
-        <div class="signature-grid">
-            <div class="signature-cell">
-                Bag. Pembelian
-                <div style="margin-top:40px; border-top:1px dotted #000;"></div>
-            </div>
-            <div class="signature-cell">
-                Menyetujui
-                <div style="margin-top:40px; border-top:1px dotted #000;"></div>
-            </div>
-            <div class="signature-cell">
-                Supplier
-                <div style="margin-top:40px; border-top:1px dotted #000;"></div>
-            </div>
+        <div class="notes">
+            Keterangan :
+            <br>
+            {!! nl2br(e($metadata['notes'] ?? '')) !!}
         </div>
-
         <div class="footer">
             <span>Dicetak pada {{ $metadata['document_generated_at'] ?? now()->translatedFormat('d/m/Y H:i') }}</span>
-            <span>Halaman ini siap cetak dan copy image.</span>
+            <span>Aplikasi RPA SKMeat.ID</span>
         </div>
     </div>
 
