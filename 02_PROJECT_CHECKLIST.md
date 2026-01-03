@@ -111,12 +111,11 @@ Status Legend:
         - [x] Diskon tidak boleh negatif atau melampaui harga akhir.
     - [x] **Perhitungan Tambahan**
         - [x] Hitung susut jalan otomatis dari selisih berat kirim vs terima.
-    - [ ] **Output PO**
-        - [x] Membuat Tombol Cetak Dokumen, yang akan membuka halaman baru dengan tampilan siap cetak.
-        - [ ] Membuat view Cetak dokumen terpisah yang berisi detail PO di route /live-chicken-purchase-orders/{purchaseOrderId}/print.
-        - [ ] Di view Cetak dokumen, terdapat :
-            - [ ] Fitur seperti file #contoh-view.html
-        - [ ] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
+    - [x] **Output PO**
+        - [x] Membuat tombol Cetak dari tabel & halaman edit yang menampilkan preview fullscreen siap cetak.
+        - [x] Membuat view Cetak dokumen terpisah di route /live-chicken-purchase-orders/{purchaseOrderId}/print.
+        - [x] View Cetak sudah memuat layout sesuai referensi #contoh-view.html lengkap dengan tombol salin/unduh gambar.
+        - [x] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
 - [ ] **Penerimaan Barang:**
     - [ ] **Validasi PO & Header**
         - [ ] Pilih PO yang sudah disetujui (statusnya sudah approved) sebagai sumber penerimaan.
