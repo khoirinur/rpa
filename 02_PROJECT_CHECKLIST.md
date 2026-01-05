@@ -141,7 +141,7 @@ Status Legend:
         - [ ] Validasi minimal satu item diterima dan qty > 0.
         - [ ] Update status PO (Partial/Complete) secara otomatis.
         - [ ] Posting stok masuk ke gudang tujuan dan log aktivitas.
-- [ ] **Stock In:** Form pencatatan masuk barang ke gudang.
+- [x] **Stock In:** Form pencatatan masuk barang ke gudang.
 
 ## Phase 3: Production (Inti)
 - [ ] **Work Order (Penyembelihan):**
@@ -182,9 +182,9 @@ Status Legend:
 - [ ] **Penyesuaian Persediaan:** 
     - [ ] **Header Form**
         - [ ] Tanggal penyesuaian (wajib) dengan validasi tidak boleh di masa depan. (default hari ini)
-    - [ ] **Validasi Konteks**
-        - [ ] Tidak boleh mencari atau menambahkan barang sebelum menentukan tanggal.
-        - [ ] Semua field wajib di header harus terisi sebelum tab detail aktif.
+    - [x] **Validasi Konteks**
+        - [x] Tidak boleh mencari atau menambahkan barang sebelum menentukan tanggal.
+        - [x] Semua field wajib di header harus terisi sebelum tab detail aktif.
     - [ ] **Rincian Barang**
         - [ ] Komponen cari barang memunculkan modal detail ketika dipilih.
         - [ ] Kolom editable: Nama item, Tipe Penyesuaian (Penambahan, Pengurangan, Atur Stok), Kuantitas, Satuan, Gudang Tujuan (Otimatis Terisi Gudang Pagu), Keterangan, Stok Saat Ini (Readable).
@@ -194,6 +194,7 @@ Status Legend:
         - [ ] Keterangan.
     - [ ] **Ringkasan & Footer**
         - [ ] Total Harga Penyesuaian (hanya jika ada penambahan stok dengan biaya).
+    - [x] Fondasi `inventory_balances` (tabel + service updater multi-gudang).
 - [ ] **Surat Jalan:** Generate PDF Surat Jalan untuk sopir.
 - [ ] **Stok Opname & Kartu Stok:** Fitur Export Excel untuk audit stok.
 
