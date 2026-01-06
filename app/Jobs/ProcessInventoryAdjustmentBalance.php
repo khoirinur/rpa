@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\InventoryAdjustment;
 use App\Models\InventoryAdjustmentItem;
 use App\Services\InventoryBalanceService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,7 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Throwable;
 
-class ProcessInventoryAdjustmentBalance implements ShouldQueue
+class ProcessInventoryAdjustmentBalance implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -21,6 +22,11 @@ class ProcessInventoryAdjustmentBalance implements ShouldQueue
 
     public function __construct(public int $inventoryAdjustmentId)
     {
+    }
+
+    public function uniqueId(): string
+    {
+        return sprintf('inventory-adjustment:%s', $this->inventoryAdjustmentId);
     }
 
     public function handle(InventoryBalanceService $inventoryBalanceService): void

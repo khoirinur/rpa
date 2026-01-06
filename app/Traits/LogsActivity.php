@@ -10,6 +10,10 @@ trait LogsActivity
     public static function bootLogsActivity(): void
     {
         foreach (['created', 'updated', 'deleted', 'restored', 'forceDeleted'] as $event) {
+            if (! method_exists(static::class, $event)) {
+                continue;
+            }
+
             static::$event(function (Model $model) use ($event): void {
                 $model->logModelActivity($event);
             });

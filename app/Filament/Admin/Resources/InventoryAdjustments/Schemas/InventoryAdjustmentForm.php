@@ -26,7 +26,9 @@ use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get as SchemaGet;
 use Filament\Schemas\Components\Utilities\Set as SchemaSet;
 use Filament\Schemas\Schema;
+use Closure;
 use Filament\Support\RawJs;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -158,25 +160,55 @@ class InventoryAdjustmentForm
 
         $summarySection = Section::make('Ringkasan Penyesuaian')
             ->schema([
-                TextInput::make('total_addition_value')
-                    ->label('Total Harga Penyesuaian')
+                Hidden::make('total_addition_value')
                     ->default(0)
+                    ->dehydrateStateUsing(fn ($state) => self::sanitizeDecimal($state)),
+                Hidden::make('total_reduction_value')
+                    ->default(0)
+                    ->dehydrateStateUsing(fn ($state) => self::sanitizeDecimal($state)),
+                Hidden::make('total_set_value')
+                    ->default(0)
+                    ->dehydrateStateUsing(fn ($state) => self::sanitizeDecimal($state)),
+                TextInput::make('total_addition_value_display')
+                    ->label('Total Harga Penyesuaian')
                     ->readOnly()
                     ->prefix('Rp')
-                    ->formatStateUsing(fn ($state): string => number_format((float) ($state ?? 0), 0, ',', '.'))
-                    ->dehydrateStateUsing(fn ($state) => self::sanitizeDecimal($state)),
-                TextInput::make('total_reduction_value')
+                    ->default('0')
+                    ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS))
+                    ->dehydrated(false)
+                    ->afterStateHydrated(function ($state, SchemaSet $set, SchemaGet $get): void {
+                        $set('total_addition_value_display', self::formatCurrencyValue(
+                            self::sanitizeDecimal($get('total_addition_value') ?? 0)
+                        ));
+                    }),
+                TextInput::make('total_reduction_value_display')
                     ->label('Total Qty Pengurangan')
-                    ->default(0)
                     ->readOnly()
-                    ->formatStateUsing(fn ($state): string => number_format((float) ($state ?? 0), 3, ',', '.'))
-                    ->dehydrateStateUsing(fn ($state) => self::sanitizeDecimal($state)),
-                TextInput::make('total_set_value')
+                    ->default('0')
+                    ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 3)
+JS))
+                    ->dehydrated(false)
+                    ->afterStateHydrated(function ($state, SchemaSet $set, SchemaGet $get): void {
+                        $set('total_reduction_value_display', self::formatQuantityValue(
+                            self::sanitizeDecimal($get('total_reduction_value') ?? 0)
+                        ));
+                    }),
+                TextInput::make('total_set_value_display')
                     ->label('Total Qty Atur Stok')
-                    ->default(0)
                     ->readOnly()
-                    ->formatStateUsing(fn ($state): string => number_format((float) ($state ?? 0), 3, ',', '.'))
-                    ->dehydrateStateUsing(fn ($state) => self::sanitizeDecimal($state)),
+                    ->default('0')
+                    ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 3)
+JS))
+                    ->dehydrated(false)
+                    ->afterStateHydrated(function ($state, SchemaSet $set, SchemaGet $get): void {
+                        $set('total_set_value_display', self::formatQuantityValue(
+                            self::sanitizeDecimal($get('total_set_value') ?? 0)
+                        ));
+                    }),
             ])
             ->columns(3)
             ->columnSpanFull();
@@ -315,8 +347,11 @@ class InventoryAdjustmentForm
 
     protected static function lineItemFields(): array
     {
-        return [
+        $fields = [
             Hidden::make('id'),
+            Hidden::make('product_id')
+                ->default(null)
+                ->dehydrateStateUsing(fn ($state) => $state ? (int) $state : null),
             Hidden::make('__draft'),
             Hidden::make('quantity')
                 ->default(0)
@@ -357,27 +392,30 @@ class InventoryAdjustmentForm
                         $set('target_quantity', null);
                     }
 
-                    $set('adjustment_quantity_display', self::formatQuantityValue($active ?? 0));
+                    $set('adjustment_quantity', self::formatInputDecimal($active ?? 0, 3));
                     self::syncLineItemCost($set, $get);
                 })
                 ->columnSpan(12),
-            TextInput::make('adjustment_quantity_display')
+            TextInput::make('adjustment_quantity')
                 ->label('Kuantitas')
                 ->inlineLabel()
                 ->required()
-                ->default('0')
+                ->type('text')
+                ->default(0)
                 ->mask(RawJs::make(<<<'JS'
-$money($input, ',', '.', 3)
-JS))
+$money($input, ',', '.', 0)
+JS
+                ))
+                ->stripCharacters(['.', ','])
                 ->live(onBlur: true)
-                ->dehydrated(false)
                 ->afterStateHydrated(function ($state, SchemaSet $set, SchemaGet $get): void {
-                    $set('adjustment_quantity_display', self::formatQuantityValue(
-                        self::resolveActiveQuantityValue($get)
+                    $set('adjustment_quantity', self::formatDecimal(
+                        self::resolveActiveQuantityValue($get),
+                        0
                     ));
                 })
                 ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
-                    $quantity = self::sanitizeDecimal($state);
+                    $quantity = self::sanitizeMoneyValue($state);
                     $type = $get('adjustment_type');
 
                     if ($type === InventoryAdjustment::ADJUSTMENT_TYPE_SET) {
@@ -388,8 +426,6 @@ JS))
                         $set('target_quantity', null);
                         self::syncLineItemCost($set, $get, quantityOverride: $quantity);
                     }
-
-                    $set('adjustment_quantity_display', self::formatQuantityValue($quantity));
                 })
                 ->columnSpan(12),
             Hidden::make('target_quantity')
@@ -424,9 +460,16 @@ JS))
                 ->formatStateUsing(fn ($state): string => self::formatQuantityValue((float) ($state ?? 0)))
                 ->dehydrateStateUsing(fn ($state) => self::sanitizeDecimal($state))
                 ->columnSpan(12),
-            TextInput::make('unit_cost_display')
-                ->label('Biaya Satuan (Rp)')
+            TextInput::make('unit_price')
+                ->label('@Harga')
                 ->inlineLabel()
+                ->type('text')
+                ->required()
+                ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
+                    if (self::sanitizeMoneyValue($value) < 0) {
+                        $fail('Harga tidak boleh negatif.');
+                    }
+                })
                 ->prefix('Rp')
                 ->mask(RawJs::make(<<<'JS'
 $money($input, ',', '.', 0)
@@ -434,36 +477,27 @@ JS))
                 ->stripCharacters(['.', ','])
                 ->live(onBlur: true)
                 ->dehydrated(false)
-                ->reactive()
                 ->hidden(fn (SchemaGet $get): bool => $get('adjustment_type') !== InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION)
-                ->afterStateHydrated(function ($state, SchemaSet $set, SchemaGet $get): void {
-                    $set('unit_cost_display', self::formatCurrencyValue(self::sanitizeDecimal($get('unit_cost') ?? 0)));
-                })
                 ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
-                    $unitCost = self::sanitizeDecimal($state);
+                    $unitCost = self::sanitizeMoneyValue($state);
                     $set('unit_cost', $unitCost);
-                    $set('unit_cost_display', self::formatCurrencyValue($unitCost));
                     self::syncLineItemCost($set, $get, unitCostOverride: $unitCost);
                 })
                 ->columnSpan(12),
-            TextInput::make('total_cost_display')
+            Placeholder::make('total_cost_display')
                 ->label('Total Biaya')
-                ->inlineLabel()
-                ->prefix('Rp')
-                ->readOnly()
-                ->default('0')
-                ->dehydrated(false)
                 ->reactive()
+                ->content(fn (SchemaGet $get): string => self::formatCurrency(self::resolveLiveTotalCost($get)))
                 ->hidden(fn (SchemaGet $get): bool => $get('adjustment_type') !== InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION)
-                ->afterStateHydrated(function ($state, SchemaSet $set, SchemaGet $get): void {
-                    $set('total_cost_display', self::formatCurrencyValue(self::sanitizeDecimal($get('total_cost') ?? 0)));
-                })
+                ->extraAttributes(['class' => 'text-right font-semibold tabular-nums text-base text-primary-700'])
                 ->columnSpan(12),
             Textarea::make('notes')
                 ->label('Catatan Baris')
                 ->rows(2)
                 ->columnSpan(12),
         ];
+
+        return $fields;
     }
 
     protected static function makeEditLineItemAction(): Action
@@ -476,6 +510,12 @@ JS))
             ->schema(self::lineItemFields())
             ->extraAttributes(['data-row-trigger-only' => true])
             ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
+                Log::channel('single')->debug('Inventory adjustment line-item modal mount', [
+                    'item_key' => $arguments['item'] ?? null,
+                    'is_pending' => ! empty($arguments['pending']),
+                    'has_payload' => isset($arguments['payload']) && is_array($arguments['payload']),
+                ]);
+
                 if (! empty($arguments['pending']) && is_array($arguments['payload'] ?? null)) {
                     $schema->fill($arguments['payload']);
 
@@ -490,8 +530,18 @@ JS))
             ->action(function (array $data, array $arguments, Repeater $component): void {
                 $itemKey = $arguments['item'] ?? null;
                 $isPending = (bool) ($arguments['pending'] ?? false);
+                $isDelete = (bool) ($arguments['delete_line_item'] ?? false);
 
-                if ($arguments['delete_line_item'] ?? false) {
+                $data = self::normalizeLineItemPayloadData($data);
+
+                Log::channel('single')->debug('Inventory adjustment line-item modal submit', [
+                    'item_key' => $itemKey,
+                    'is_pending' => $isPending,
+                    'delete' => $isDelete,
+                    'data_snapshot' => $data,
+                ]);
+
+                if ($isDelete) {
                     self::removeLineItemState($component, $itemKey);
 
                     return;
@@ -514,6 +564,40 @@ JS))
                     ->color('danger')
                     ->requiresConfirmation(),
             ]);
+    }
+
+    protected static function normalizeLineItemPayloadData(array $data): array
+    {
+        $inputQuantity = $data['adjustment_quantity'] ?? null;
+        $quantity = self::sanitizeMoneyValue($inputQuantity);
+        $type = $data['adjustment_type'] ?? InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION;
+
+        if ($type === InventoryAdjustment::ADJUSTMENT_TYPE_SET) {
+            $data['target_quantity'] = $quantity;
+            $data['quantity'] = 0;
+        } else {
+            $data['quantity'] = $quantity;
+            $data['target_quantity'] = null;
+        }
+
+        $data['adjustment_quantity'] = self::formatDecimal($quantity, 0);
+
+        $unitCostInput = $data['unit_cost'] ?? $data['unit_price'] ?? 0;
+        $unitCost = self::sanitizeMoneyValue($unitCostInput);
+        $data['unit_cost'] = $unitCost;
+        $data['unit_price'] = self::formatCurrencyValue($unitCost);
+
+        $costQuantity = $type === InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION
+            ? $data['quantity']
+            : 0;
+
+        $totalCost = $type === InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION
+            ? round($unitCost * $costQuantity, 2)
+            : 0;
+
+        $data['total_cost'] = $totalCost;
+
+        return $data;
     }
 
     protected static function prepareLineItemPayload(array $data): array
@@ -542,6 +626,16 @@ JS))
             'notes' => $data['notes'] ?? null,
             '__draft' => (bool) ($data['__draft'] ?? false),
         ];
+
+        Log::channel('single')->debug('Inventory adjustment line-item payload prepared', [
+            'product_id' => $payload['product_id'],
+            'warehouse_id' => $payload['warehouse_id'],
+            'type' => $payload['adjustment_type'],
+            'quantity' => $payload['quantity'],
+            'target_quantity' => $payload['target_quantity'],
+            'unit_cost' => $payload['unit_cost'],
+            'total_cost' => $payload['total_cost'],
+        ]);
 
         return self::withDisplayValues($payload);
     }
@@ -684,7 +778,6 @@ JS))
     ): void {
         if ($get('adjustment_type') !== InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION) {
             $set('total_cost', 0);
-            $set('total_cost_display', self::formatCurrencyValue(0));
             return;
         }
 
@@ -693,7 +786,18 @@ JS))
         $total = round($quantity * $unitCost, 2);
 
         $set('total_cost', $total);
-        $set('total_cost_display', self::formatCurrencyValue($total));
+    }
+
+    protected static function resolveLiveTotalCost(SchemaGet $get): float
+    {
+        if ($get('adjustment_type') !== InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION) {
+            return 0;
+        }
+
+        $quantity = self::sanitizeDecimal($get('quantity') ?? 0);
+        $unitCost = self::sanitizeDecimal($get('unit_cost') ?? 0);
+
+        return round($quantity * $unitCost, 2);
     }
 
     protected static function syncSummary(SchemaSet $set, array $lineItems): void
@@ -721,8 +825,11 @@ JS))
         }
 
         $set('total_addition_value', round($additionValue, 2));
+        $set('total_addition_value_display', self::formatCurrencyValue($additionValue));
         $set('total_reduction_value', round($totalReductionQty, 3));
+        $set('total_reduction_value_display', self::formatQuantityValue($totalReductionQty));
         $set('total_set_value', round($totalSetQty, 3));
+        $set('total_set_value_display', self::formatQuantityValue($totalSetQty));
     }
 
     protected static function productOptions(?string $search = null): array
@@ -913,6 +1020,63 @@ JS))
             && filled($get('default_warehouse_id'));
     }
 
+    protected static function sanitizeMoneyValue(mixed $value): float
+    {
+        if (blank($value)) {
+            return 0.0;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        $numericString = preg_replace('/[^0-9,.-]/', '', (string) $value) ?? '';
+
+        if ($numericString === '' || $numericString === '-') {
+            return 0.0;
+        }
+
+        $sign = str_starts_with($numericString, '-') ? -1 : 1;
+        $numericString = ltrim($numericString, '-');
+
+        $lastDot = strrpos($numericString, '.');
+        $lastComma = strrpos($numericString, ',');
+        $decimalSeparator = null;
+
+        if ($lastDot !== false && $lastComma !== false) {
+            $decimalSeparator = $lastComma > $lastDot ? ',' : '.';
+        } elseif ($lastComma !== false) {
+            $fractionLength = strlen($numericString) - $lastComma - 1;
+            if ($fractionLength > 0 && $fractionLength <= 2) {
+                $decimalSeparator = ',';
+            }
+        } elseif ($lastDot !== false) {
+            $fractionLength = strlen($numericString) - $lastDot - 1;
+            if ($fractionLength > 0 && $fractionLength <= 2) {
+                $decimalSeparator = '.';
+            }
+        }
+
+        if ($decimalSeparator !== null) {
+            $decimalPosition = $decimalSeparator === '.' ? $lastDot : $lastComma;
+            $integerPart = substr($numericString, 0, $decimalPosition);
+            $fractionalPart = substr($numericString, $decimalPosition + 1);
+
+            $integerDigits = preg_replace('/[^0-9]/', '', $integerPart) ?? '';
+            $fractionalDigits = preg_replace('/[^0-9]/', '', $fractionalPart) ?? '';
+
+            $normalized = $integerDigits . '.' . $fractionalDigits;
+        } else {
+            $normalized = preg_replace('/[^0-9]/', '', $numericString) ?? '';
+        }
+
+        if ($normalized === '' || $normalized === '.') {
+            return 0.0;
+        }
+
+        return $sign * (float) $normalized;
+    }
+
     protected static function sanitizeDecimal($value): float
     {
         if ($value === null) {
@@ -923,18 +1087,45 @@ JS))
             return (float) $value;
         }
 
-        $normalized = str_replace(['.', ','], ['', '.'], (string) $value);
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        $normalized = trim((string) $value);
+
+        if ($normalized === '') {
+            return 0.0;
+        }
+
+        if (preg_match('/^\d{1,3}(\.\d{3})+(,\d+)?$/', $normalized)) {
+            $normalized = str_replace('.', '', $normalized);
+            $normalized = str_replace(',', '.', $normalized);
+            return (float) $normalized;
+        }
+
+        if (preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $normalized)) {
+            $normalized = str_replace(',', '', $normalized);
+            return (float) $normalized;
+        }
+
+        if (str_contains($normalized, ',')) {
+            $normalized = str_replace(['.', ','], ['', '.'], $normalized);
+        } else {
+            $normalized = str_replace(',', '.', $normalized);
+        }
 
         return (float) $normalized;
     }
 
     protected static function withDisplayValues(array $state): array
     {
-        $state['adjustment_quantity_display'] = self::formatQuantityValue(
-            self::resolveActiveQuantityValue($state)
+        $state['adjustment_quantity'] = self::formatDecimal(
+            self::resolveActiveQuantityValue($state),
+            0
         );
-        $state['unit_cost_display'] = self::formatCurrencyValue(self::sanitizeDecimal($state['unit_cost'] ?? 0));
-        $state['total_cost_display'] = self::formatCurrencyValue(self::sanitizeDecimal($state['total_cost'] ?? 0));
+        $state['unit_cost'] = self::sanitizeDecimal($state['unit_cost'] ?? 0);
+        $state['unit_price'] = self::formatCurrencyValue($state['unit_cost']);
+        $state['total_cost'] = self::sanitizeDecimal($state['total_cost'] ?? 0);
 
         return $state;
     }
@@ -954,5 +1145,28 @@ JS))
         return self::sanitizeDecimal(
             $state instanceof SchemaGet ? $state('quantity') : ($state['quantity'] ?? 0)
         );
+    }
+
+    protected static function sanitizeDecimalInput(mixed $value): float
+    {
+        if ($value === null || $value === '') {
+            return 0;
+        }
+
+        return self::sanitizeDecimal($value);
+    }
+
+    protected static function formatInputDecimal(mixed $value, int $decimals = 3): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return self::formatDecimal($value, $decimals);
+    }
+
+    protected static function formatDecimal(mixed $value, int $decimals = 2): string
+    {
+        return number_format((float) ($value ?? 0), $decimals, ',', '.');
     }
 }

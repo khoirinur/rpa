@@ -12,6 +12,8 @@ class Product extends Model
 {
     use HasFactory, SoftDeletes, LogsActivity;
 
+    protected static array $warehouseIdCache = [];
+
     public const TYPE_OPTIONS = [
         'persediaan' => 'Persediaan',
         'jasa' => 'Jasa',
@@ -38,6 +40,44 @@ class Product extends Model
         static::saving(function (self $product): void {
             $product->code = strtoupper((string) $product->code);
         });
+
+        static::saved(function (self $product): void {
+            self::ensureInventoryBalances($product);
+        });
+    }
+
+    protected static function ensureInventoryBalances(self $product): void
+    {
+        $warehouseIds = self::resolveWarehouseIdsForBalance($product);
+
+        if (empty($warehouseIds)) {
+            return;
+        }
+
+        foreach ($warehouseIds as $warehouseId) {
+            InventoryBalance::firstOrCreate([
+                'product_id' => $product->getKey(),
+                'warehouse_id' => $warehouseId,
+                'unit_id' => $product->unit_id,
+            ]);
+        }
+    }
+
+    protected static function resolveWarehouseIdsForBalance(self $product): array
+    {
+        if (empty(self::$warehouseIdCache)) {
+            self::$warehouseIdCache = Warehouse::query()->pluck('id')->all();
+        }
+
+        $ids = self::$warehouseIdCache;
+
+        if ($product->default_warehouse_id) {
+            $ids[] = $product->default_warehouse_id;
+        }
+
+        $ids = array_filter(array_unique($ids));
+
+        return array_values($ids);
     }
 
     public function productCategory(): BelongsTo

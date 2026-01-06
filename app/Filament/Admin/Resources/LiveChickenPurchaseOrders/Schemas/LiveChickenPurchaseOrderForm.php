@@ -448,7 +448,7 @@ JS))
     {
         return [
             TableColumn::make('Barang')->width('28rem'),
-            TableColumn::make('Qty')->width('7rem'),
+            TableColumn::make('Kuantitas')->width('7rem'),
             TableColumn::make('Satuan')->width('6rem'),
             TableColumn::make('@Harga')->width('10rem'),
             TableColumn::make('Diskon')->width('8rem'),
@@ -475,13 +475,13 @@ JS))
                 ->maxLength(120)
                 ->columnSpanFull(),
             TextInput::make('quantity')
-                ->label('Qty')
+                ->label('Kuantitas')
                 ->inlineLabel()
                 ->type('text')
                 ->required()
                 ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
                     if (self::sanitizeMoneyValue($value) < 0.01) {
-                        $fail('Qty minimal 0,01.');
+                        $fail('Kuantitas minimal 0,01.');
                     }
                 })
                 ->mask(RawJs::make(<<<'JS'
@@ -573,7 +573,7 @@ JS
             ->label('Ubah Barang')
             ->modalHeading('Detail Barang')
             ->modalSubmitActionLabel('Simpan')
-            ->modalWidth('5xl')
+            ->modalWidth('xl')
             ->schema(self::lineItemFields())
             ->extraAttributes(['data-row-trigger-only' => true])
             ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
