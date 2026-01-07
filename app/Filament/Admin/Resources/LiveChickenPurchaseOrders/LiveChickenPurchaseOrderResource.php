@@ -25,16 +25,14 @@ class LiveChickenPurchaseOrderResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Pembelian';
+
+
     protected static ?string $recordTitleAttribute = 'po_number';
 
     public static function getNavigationLabel(): string
     {
         return 'Pembelian Ayam Hidup';
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Pembelian';
     }
 
     public static function getPluralModelLabel(): string

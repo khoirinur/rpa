@@ -528,7 +528,20 @@ class GoodsReceiptForm
 
     protected static function formatDecimal(mixed $value, int $decimals = 2): string
     {
-        return number_format((float) ($value ?? 0), $decimals, ',', '.');
+        $formatted = number_format((float) ($value ?? 0), $decimals, ',', '.');
+
+        if (! str_contains($formatted, ',')) {
+            return $formatted;
+        }
+
+        [$integerPart, $decimalPart] = explode(',', $formatted, 2);
+        $trimmedDecimal = rtrim($decimalPart, '0');
+
+        if ($trimmedDecimal === '') {
+            return $integerPart;
+        }
+
+        return sprintf('%s,%s', $integerPart, $trimmedDecimal);
     }
 
     protected static function formatCurrency(mixed $value): string

@@ -22,6 +22,8 @@ class InventoryAdjustmentResource extends Resource
 
     protected static ?string $slug = 'inventory-adjustments';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventory';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAdjustmentsVertical;
 
     protected static ?string $recordTitleAttribute = 'adjustment_number';
@@ -31,11 +33,6 @@ class InventoryAdjustmentResource extends Resource
     public static function getNavigationLabel(): string
     {
         return 'Penyesuaian Persediaan';
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Inventory & Distribusi';
     }
 
     public static function getPluralModelLabel(): string

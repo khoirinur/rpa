@@ -7,6 +7,7 @@ use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -40,6 +41,13 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+            ])
+            ->navigationGroups([
+                NavigationGroup::make('Pembelian')->collapsed(false),
+                NavigationGroup::make('Inventory')->collapsed(true),
+                NavigationGroup::make('Master Data')->collapsed(true),
+                NavigationGroup::make('Audit & Monitoring')->collapsed(true),
+                NavigationGroup::make('Pelindung')->collapsed(true),
             ])
             ->renderHook('panels::body.end', function () {
                 return view('filament.hooks.line-item-modal-listener')->render()

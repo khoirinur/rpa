@@ -10,8 +10,6 @@ use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Throwable;
 
 class EditInventoryAdjustment extends EditRecord
 {
@@ -33,38 +31,12 @@ class EditInventoryAdjustment extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        Log::channel('single')->debug('Inventory adjustment update payload snapshot', [
-            'record_id' => $this->record?->getKey(),
-            'adjustment_date' => $data['adjustment_date'] ?? null,
-            'default_warehouse_id' => $data['default_warehouse_id'] ?? null,
-            'items_count' => count($data['items'] ?? []),
-        ]);
-
         return $data;
     }
 
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
-        Log::channel('single')->info('Inventory adjustment update attempt', [
-            'record_id' => $record->getKey(),
-        ]);
-
-        try {
-            $updatedRecord = parent::handleRecordUpdate($record, $data);
-
-            Log::channel('single')->info('Inventory adjustment update success', [
-                'record_id' => $updatedRecord->getKey(),
-            ]);
-
-            return $updatedRecord;
-        } catch (Throwable $exception) {
-            Log::channel('single')->error('Inventory adjustment update failed', [
-                'record_id' => $record->getKey(),
-                'message' => $exception->getMessage(),
-            ]);
-
-            throw $exception;
-        }
+        return parent::handleRecordUpdate($record, $data);
     }
 
     protected function afterSave(): void

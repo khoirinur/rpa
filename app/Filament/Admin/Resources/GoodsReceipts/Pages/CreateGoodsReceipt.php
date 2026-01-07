@@ -3,10 +3,12 @@
 namespace App\Filament\Admin\Resources\GoodsReceipts\Pages;
 
 use App\Filament\Admin\Resources\GoodsReceipts\GoodsReceiptResource;
+use App\Jobs\ProcessGoodsReceiptInventory;
 use App\Models\ChartOfAccount;
 use App\Models\GoodsReceipt;
 use App\Models\LiveChickenPurchaseOrder;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateGoodsReceipt extends CreateRecord
@@ -32,6 +34,14 @@ class CreateGoodsReceipt extends CreateRecord
     protected function afterCreate(): void
     {
         $this->applyAdditionalCostsToChartOfAccounts($this->record->additional_costs ?? []);
+
+        if (! $this->record?->getKey()) {
+            return;
+        }
+
+        DB::afterCommit(function (): void {
+            ProcessGoodsReceiptInventory::dispatchSync($this->record->getKey());
+        });
     }
 
     protected function ensurePurchaseOrderDependencies(array $data): array
@@ -105,7 +115,7 @@ class CreateGoodsReceipt extends CreateRecord
             return;
         }
 
-        $alreadyProcessed = GoodsReceipt::withTrashed()
+        $alreadyProcessed = GoodsReceipt::query()
             ->where('live_chicken_purchase_order_id', $purchaseOrderId)
             ->exists();
 

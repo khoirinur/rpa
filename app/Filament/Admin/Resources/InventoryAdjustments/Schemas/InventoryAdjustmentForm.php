@@ -28,7 +28,6 @@ use Filament\Schemas\Components\Utilities\Set as SchemaSet;
 use Filament\Schemas\Schema;
 use Closure;
 use Filament\Support\RawJs;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -510,12 +509,6 @@ JS))
             ->schema(self::lineItemFields())
             ->extraAttributes(['data-row-trigger-only' => true])
             ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
-                Log::channel('single')->debug('Inventory adjustment line-item modal mount', [
-                    'item_key' => $arguments['item'] ?? null,
-                    'is_pending' => ! empty($arguments['pending']),
-                    'has_payload' => isset($arguments['payload']) && is_array($arguments['payload']),
-                ]);
-
                 if (! empty($arguments['pending']) && is_array($arguments['payload'] ?? null)) {
                     $schema->fill($arguments['payload']);
 
@@ -533,13 +526,6 @@ JS))
                 $isDelete = (bool) ($arguments['delete_line_item'] ?? false);
 
                 $data = self::normalizeLineItemPayloadData($data);
-
-                Log::channel('single')->debug('Inventory adjustment line-item modal submit', [
-                    'item_key' => $itemKey,
-                    'is_pending' => $isPending,
-                    'delete' => $isDelete,
-                    'data_snapshot' => $data,
-                ]);
 
                 if ($isDelete) {
                     self::removeLineItemState($component, $itemKey);
@@ -626,16 +612,6 @@ JS))
             'notes' => $data['notes'] ?? null,
             '__draft' => (bool) ($data['__draft'] ?? false),
         ];
-
-        Log::channel('single')->debug('Inventory adjustment line-item payload prepared', [
-            'product_id' => $payload['product_id'],
-            'warehouse_id' => $payload['warehouse_id'],
-            'type' => $payload['adjustment_type'],
-            'quantity' => $payload['quantity'],
-            'target_quantity' => $payload['target_quantity'],
-            'unit_cost' => $payload['unit_cost'],
-            'total_cost' => $payload['total_cost'],
-        ]);
 
         return self::withDisplayValues($payload);
     }

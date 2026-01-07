@@ -55,7 +55,7 @@ class EditLiveChickenPurchaseOrder extends EditRecord
             return false;
         }
 
-        return ! GoodsReceipt::withTrashed()
+        return ! GoodsReceipt::query()
             ->where('live_chicken_purchase_order_id', $this->record->getKey())
             ->exists();
     }

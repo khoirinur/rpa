@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\ProcessGoodsReceiptInventory;
 use App\Models\ChartOfAccount;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class GoodsReceipt extends Model
 {
@@ -84,9 +86,19 @@ class GoodsReceipt extends Model
             }
 
             $receipt->syncChartOfAccounts(-1);
+
+            DB::afterCommit(function () use ($receipt): void {
+                ProcessGoodsReceiptInventory::dispatchSync($receipt->getKey(), true);
+            });
         });
 
-        static::restored(fn (self $receipt) => $receipt->syncChartOfAccounts(+1));
+        static::restored(function (self $receipt): void {
+            $receipt->syncChartOfAccounts(+1);
+
+            DB::afterCommit(function () use ($receipt): void {
+                ProcessGoodsReceiptInventory::dispatchSync($receipt->getKey());
+            });
+        });
     }
 
     protected static function generateNumber(): string
