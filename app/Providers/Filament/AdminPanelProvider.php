@@ -43,7 +43,7 @@ class AdminPanelProvider extends PanelProvider
                 FilamentInfoWidget::class,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Pembelian')->collapsed(false),
+                NavigationGroup::make('Pembelian')->collapsed(true),
                 NavigationGroup::make('Inventory')->collapsed(true),
                 NavigationGroup::make('Master Data')->collapsed(true),
                 NavigationGroup::make('Audit & Monitoring')->collapsed(true),
