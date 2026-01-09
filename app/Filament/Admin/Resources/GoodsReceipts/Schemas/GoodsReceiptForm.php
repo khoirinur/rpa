@@ -558,33 +558,6 @@ class GoodsReceiptForm
         return self::formatDecimal($value, $decimals);
     }
 
-    protected static function sanitizeMoneyValue(mixed $value): float
-    {
-        if (is_numeric($value)) {
-            return (float) $value;
-        }
-
-        $sanitized = preg_replace('/[^0-9]/', '', (string) $value);
-
-        return $sanitized === '' ? 0 : (float) $sanitized;
-    }
-
-    protected static function sanitizeDecimalInput(mixed $value): float
-    {
-        if ($value === null || $value === '') {
-            return 0;
-        }
-
-        if (is_numeric($value)) {
-            return (float) $value;
-        }
-
-        $normalized = str_replace('.', '', (string) $value);
-        $normalized = str_replace(',', '.', $normalized);
-
-        return is_numeric($normalized) ? (float) $normalized : 0;
-    }
-
     protected static function calculateItemLossPercentage(float $orderedQty, float $orderedWeight, float $lossQty, float $lossWeight): float
     {
         if ($orderedWeight > 0) {
@@ -600,14 +573,14 @@ class GoodsReceiptForm
 
     protected static function formatLossSnapshot(array $item): string
     {
-        $orderedQty = self::sanitizeDecimalInput($item['ordered_quantity'] ?? 0);
-        $orderedWeight = self::sanitizeDecimalInput($item['ordered_weight_kg'] ?? 0);
-        $receivedQty = self::sanitizeDecimalInput($item['received_quantity'] ?? 0);
-        $receivedWeight = self::sanitizeDecimalInput($item['received_weight_kg'] ?? 0);
+        $orderedQty = sanitize_decimal($item['ordered_quantity'] ?? 0);
+        $orderedWeight = sanitize_decimal($item['ordered_weight_kg'] ?? 0);
+        $receivedQty = sanitize_decimal($item['received_quantity'] ?? 0);
+        $receivedWeight = sanitize_decimal($item['received_weight_kg'] ?? 0);
         $lossQtyField = $item['loss_quantity'] ?? null;
         $lossWeightField = $item['loss_weight_kg'] ?? null;
-        $lossQty = $lossQtyField !== null ? self::sanitizeDecimalInput($lossQtyField) : max($orderedQty - $receivedQty, 0);
-        $lossWeight = $lossWeightField !== null ? self::sanitizeDecimalInput($lossWeightField) : max($orderedWeight - $receivedWeight, 0);
+        $lossQty = $lossQtyField !== null ? sanitize_decimal($lossQtyField) : max($orderedQty - $receivedQty, 0);
+        $lossWeight = $lossWeightField !== null ? sanitize_decimal($lossWeightField) : max($orderedWeight - $receivedWeight, 0);
 
         $percentage = self::calculateItemLossPercentage($orderedQty, $orderedWeight, $lossQty, $lossWeight);
         $unit = strtolower((string) ($item['unit'] ?? 'kg'));
@@ -1057,7 +1030,7 @@ class GoodsReceiptForm
                 ->inlineLabel()
                 ->type('text')
                 ->default(0)
-                ->dehydrateStateUsing(fn ($state): float => self::sanitizeDecimalInput($state))
+                ->dehydrateStateUsing(fn ($state): float => sanitize_positive_decimal($state))
                 ->formatStateUsing(fn ($state): string => self::formatInputDecimal($state, 3))
                 ->mask(RawJs::make(<<<'JS'
 $money($input, ',', '.', 3)
@@ -1070,7 +1043,7 @@ JS
                 ->inlineLabel()
                 ->type('text')
                 ->default(0)
-                ->dehydrateStateUsing(fn ($state): float => self::sanitizeDecimalInput($state))
+                ->dehydrateStateUsing(fn ($state): float => sanitize_positive_decimal($state))
                 ->formatStateUsing(fn ($state): string => self::formatInputDecimal($state, 3))
                 ->mask(RawJs::make(<<<'JS'
 $money($input, ',', '.', 3)
@@ -1175,7 +1148,7 @@ $money($input, ',', '.', 0)
 JS
                 ))
                 ->stripCharacters(['.', ','])
-                ->dehydrateStateUsing(fn ($state): float => self::sanitizeMoneyValue($state ?? 0))
+                ->dehydrateStateUsing(fn ($state): float => sanitize_rupiah($state ?? 0))
                 ->columnSpanFull(),
             Textarea::make('notes')
                 ->label('Catatan')
@@ -1340,10 +1313,10 @@ JS
 
     protected static function prepareReceiptItemPayload(array $data): array
     {
-        $orderedQty = self::sanitizeDecimalInput($data['ordered_quantity'] ?? 0);
-        $orderedWeight = self::sanitizeDecimalInput($data['ordered_weight_kg'] ?? 0);
-        $receivedQty = max(self::sanitizeDecimalInput($data['received_quantity'] ?? 0), 0);
-        $receivedWeight = max(self::sanitizeDecimalInput($data['received_weight_kg'] ?? 0), 0);
+        $orderedQty = sanitize_positive_decimal($data['ordered_quantity'] ?? 0);
+        $orderedWeight = sanitize_positive_decimal($data['ordered_weight_kg'] ?? 0);
+        $receivedQty = sanitize_positive_decimal($data['received_quantity'] ?? 0);
+        $receivedWeight = sanitize_positive_decimal($data['received_weight_kg'] ?? 0);
 
         $lossQty = max($orderedQty - $receivedQty, 0);
         $lossWeight = max($orderedWeight - $receivedWeight, 0);
@@ -1373,7 +1346,7 @@ JS
         return [
             'name' => $data['name'] ?? null,
             'coa_reference' => $data['coa_reference'] ?? null,
-            'amount' => self::sanitizeMoneyValue($data['amount'] ?? 0),
+            'amount' => sanitize_rupiah($data['amount'] ?? 0),
             'notes' => $data['notes'] ?? null,
             'buffer_key' => $data['buffer_key'] ?? (string) Str::uuid(),
         ];

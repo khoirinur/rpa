@@ -30,6 +30,9 @@ use Filament\Support\RawJs;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
+use function sanitize_decimal;
+use function sanitize_positive_decimal;
+use function sanitize_rupiah;
 
 class LiveChickenPurchaseOrderForm
 {
@@ -203,7 +206,7 @@ class LiveChickenPurchaseOrderForm
 $money($input, ',', '.', 0)
 JS))
                             ->stripCharacters(['.', ','])
-                            ->dehydrateStateUsing(fn ($state): float => self::sanitizeMoneyValue($state ?? 0))
+                            ->dehydrateStateUsing(fn ($state): float => sanitize_decimal($state ?? 0))
                             ->live(onBlur: true) // only sync after the field loses focus
                             ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
                                 self::syncLineItemSummaries($set, $get, $get('line_items') ?? []);
@@ -287,7 +290,7 @@ JS))
                             ->type('text')
                             ->default('0')
                             ->dehydrated(false)
-                            ->formatStateUsing(fn ($state): string => self::formatQuantityValue((float) self::sanitizeMoneyValue($state ?? 0))),
+                            ->formatStateUsing(fn ($state): string => self::formatQuantityValue(sanitize_positive_decimal($state ?? 0))),
                         Hidden::make('total_weight_kg')
                             ->default(0),
                         TextInput::make('total_weight_kg_display')
@@ -296,7 +299,7 @@ JS))
                             ->type('text')
                             ->default('0')
                             ->dehydrated(false)
-                            ->formatStateUsing(fn ($state): string => self::formatQuantityValue((float) self::sanitizeMoneyValue($state ?? 0))),
+                            ->formatStateUsing(fn ($state): string => self::formatQuantityValue(sanitize_positive_decimal($state ?? 0))),
                         Hidden::make('subtotal')
                             ->default(0),
                         TextInput::make('subtotal_display')
@@ -308,7 +311,7 @@ JS))
                             ->prefix('Rp')
                             ->formatStateUsing(fn ($state): ?string => $state === null
                                 ? null
-                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
+                                : number_format((float) sanitize_decimal($state), 0, ',', '.')),
                         Hidden::make('discount_total')
                             ->default(0),
                         TextInput::make('discount_total_display')
@@ -320,7 +323,7 @@ JS))
                             ->prefix('Rp')
                             ->formatStateUsing(fn ($state): ?string => $state === null
                                 ? null
-                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
+                                : number_format((float) sanitize_decimal($state), 0, ',', '.')),
                         Hidden::make('tax_total')
                             ->default(0),
                         TextInput::make('tax_total_display')
@@ -332,7 +335,7 @@ JS))
                             ->prefix('Rp')
                             ->formatStateUsing(fn ($state): ?string => $state === null
                                 ? null
-                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
+                                : number_format((float) sanitize_decimal($state), 0, ',', '.')),
                         Hidden::make('grand_total')
                             ->default(0),
                         TextInput::make('grand_total_display')
@@ -344,7 +347,7 @@ JS))
                             ->prefix('Rp')
                             ->formatStateUsing(fn ($state): ?string => $state === null
                                 ? null
-                                : number_format((float) self::sanitizeMoneyValue($state), 0, ',', '.')),
+                                : number_format((float) sanitize_decimal($state), 0, ',', '.')),
                         ])
                         ->columns(3)
                         ->columnSpanFull();
@@ -406,7 +409,7 @@ JS))
                 ]),
             Placeholder::make('table_quantity')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => self::formatQuantityValue(self::sanitizeMoneyValue($get('quantity'))))
+                ->content(fn (SchemaGet $get): string => self::formatQuantityValue(sanitize_positive_decimal($get('quantity'))))
                 ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
             Placeholder::make('table_unit')
                 ->hiddenLabel()
@@ -414,12 +417,12 @@ JS))
                 ->extraAttributes(['class' => 'text-sm text-gray-700 uppercase']),
             Placeholder::make('table_unit_price')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => self::formatCurrency(self::sanitizeMoneyValue($get('unit_price'))))
+                ->content(fn (SchemaGet $get): string => self::formatCurrency(sanitize_decimal($get('unit_price'))))
                 ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
             Placeholder::make('table_discount')
                 ->hiddenLabel()
                 ->content(function (SchemaGet $get): string {
-                    $value = self::sanitizeMoneyValue($get('discount_value'));
+                    $value = sanitize_decimal($get('discount_value'));
                     $type = $get('discount_type') ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT;
 
                     if ($value <= 0) {
@@ -480,7 +483,7 @@ JS))
                 ->type('text')
                 ->required()
                 ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
-                    if (self::sanitizeMoneyValue($value) < 0.01) {
+                    if (sanitize_decimal($value) < 0.01) {
                         $fail('Kuantitas minimal 0,01.');
                     }
                 })
@@ -507,7 +510,7 @@ JS
                 ->type('text')
                 ->required()
                 ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
-                    if (self::sanitizeMoneyValue($value) < 0) {
+                    if (sanitize_decimal($value) < 0) {
                         $fail('Harga tidak boleh negatif.');
                     }
                 })
@@ -542,7 +545,7 @@ JS
 
                     $grossTotal = self::calculateGrossLineTotal($get);
 
-                    if ($grossTotal > 0 && self::sanitizeMoneyValue($value) > $grossTotal) {
+                    if ($grossTotal > 0 && sanitize_decimal($value) > $grossTotal) {
                         $fail('Diskon nominal tidak boleh melebihi harga total.');
                     }
                 })
@@ -763,11 +766,11 @@ JS
             'product_id' => $data['product_id'] ?? $details['id'] ?? null,
             'item_code' => $data['item_code'] ?? $details['code'] ?? null,
             'item_name' => $data['item_name'] ?? $details['name'] ?? null,
-            'quantity' => self::sanitizeMoneyValue($data['quantity'] ?? 0),
+            'quantity' => sanitize_positive_decimal($data['quantity'] ?? 0),
             'unit' => $data['unit'] ?? 'ekor',
-            'unit_price' => self::sanitizeMoneyValue($data['unit_price'] ?? 0),
+            'unit_price' => sanitize_decimal($data['unit_price'] ?? 0),
             'discount_type' => $data['discount_type'] ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT,
-            'discount_value' => self::sanitizeMoneyValue($data['discount_value'] ?? 0),
+            'discount_value' => sanitize_decimal($data['discount_value'] ?? 0),
             'apply_tax' => (bool) ($data['apply_tax'] ?? true),
             'notes' => $data['notes'] ?? null,
             '__draft' => (bool) ($data['__draft'] ?? false),
@@ -779,7 +782,7 @@ JS
         $taxRatePercent = (float) ($get('tax_rate') ?? 0);
         $isTaxInclusive = (bool) ($get('is_tax_inclusive') ?? false);
         $globalDiscountType = $get('global_discount_type') ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT;
-        $globalDiscountValue = self::sanitizeMoneyValue($get('global_discount_value') ?? 0);
+        $globalDiscountValue = sanitize_decimal($get('global_discount_value') ?? 0);
         $summary = self::calculateLineItemSummaries(
             $lineItems,
             $taxRatePercent,
@@ -829,7 +832,7 @@ JS
                 continue;
             }
 
-            $quantity = self::sanitizeMoneyValue($item['quantity'] ?? 0);
+            $quantity = sanitize_positive_decimal($item['quantity'] ?? 0);
             $unit = strtolower((string) ($item['unit'] ?? ''));
 
             if ($unit === 'ekor') {
@@ -840,11 +843,11 @@ JS
                 $totals['total_weight_kg'] += $quantity;
             }
 
-            $unitPrice = self::sanitizeMoneyValue($item['unit_price'] ?? 0);
+            $unitPrice = sanitize_decimal($item['unit_price'] ?? 0);
             $grossLine = $quantity * $unitPrice;
 
             $discountType = $item['discount_type'] ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT;
-            $discountValue = self::sanitizeMoneyValue($item['discount_value'] ?? 0);
+            $discountValue = sanitize_decimal($item['discount_value'] ?? 0);
             $discountAmount = self::resolveLineDiscountAmount($grossLine, $discountType, $discountValue);
 
             $netLine = max($grossLine - $discountAmount, 0);
@@ -953,7 +956,7 @@ JS
     protected static function calculateLineTotal(SchemaGet $get): float
     {
         $grossTotal = self::calculateGrossLineTotal($get);
-        $discountValue = self::sanitizeMoneyValue($get('discount_value'));
+        $discountValue = sanitize_decimal($get('discount_value'));
         $discountType = $get('discount_type') ?? LiveChickenPurchaseOrder::DISCOUNT_TYPE_AMOUNT;
 
         $discountAmount = 0;
@@ -987,65 +990,8 @@ JS
     {
         $rawQuantity = $get('quantity');
         $rawUnitPrice = $get('unit_price');
-        $quantity = self::sanitizeMoneyValue($rawQuantity);
-        $unitPrice = self::sanitizeMoneyValue($rawUnitPrice);
+        $quantity = sanitize_positive_decimal($rawQuantity);
+        $unitPrice = sanitize_decimal($rawUnitPrice);
         return $quantity * $unitPrice;
-    }
-
-    protected static function sanitizeMoneyValue(mixed $value): float
-    {
-        if (blank($value)) {
-            return 0;
-        }
-
-        if (is_int($value) || is_float($value)) {
-            return (float) $value;
-        }
-
-        $numericString = preg_replace('/[^0-9,.-]/', '', (string) $value) ?? '';
-
-        if ($numericString === '' || $numericString === '-') {
-            return 0.0;
-        }
-
-        $sign = str_starts_with($numericString, '-') ? -1 : 1;
-        $numericString = ltrim($numericString, '-');
-
-        $lastDot = strrpos($numericString, '.');
-        $lastComma = strrpos($numericString, ',');
-        $decimalSeparator = null;
-
-        if ($lastDot !== false && $lastComma !== false) {
-            $decimalSeparator = $lastComma > $lastDot ? ',' : '.';
-        } elseif ($lastComma !== false) {
-            $fractionLength = strlen($numericString) - $lastComma - 1;
-            if ($fractionLength > 0 && $fractionLength <= 2) {
-                $decimalSeparator = ',';
-            }
-        } elseif ($lastDot !== false) {
-            $fractionLength = strlen($numericString) - $lastDot - 1;
-            if ($fractionLength > 0 && $fractionLength <= 2) {
-                $decimalSeparator = '.';
-            }
-        }
-
-        if ($decimalSeparator !== null) {
-            $decimalPosition = $decimalSeparator === '.' ? $lastDot : $lastComma;
-            $integerPart = substr($numericString, 0, $decimalPosition);
-            $fractionalPart = substr($numericString, $decimalPosition + 1);
-
-            $integerDigits = preg_replace('/[^0-9]/', '', $integerPart) ?? '';
-            $fractionalDigits = preg_replace('/[^0-9]/', '', $fractionalPart) ?? '';
-
-            $normalized = $integerDigits . '.' . $fractionalDigits;
-        } else {
-            $normalized = preg_replace('/[^0-9]/', '', $numericString) ?? '';
-        }
-
-        if ($normalized === '' || $normalized === '.') {
-            return 0.0;
-        }
-
-        return $sign * (float) $normalized;
     }
 }

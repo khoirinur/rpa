@@ -30,6 +30,8 @@ use Closure;
 use Filament\Support\RawJs;
 use Illuminate\Support\Str;
 use Throwable;
+use function sanitize_decimal;
+use function sanitize_positive_decimal;
 
 class InventoryAdjustmentForm
 {
@@ -414,7 +416,7 @@ JS
                     ));
                 })
                 ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
-                    $quantity = self::sanitizeMoneyValue($state);
+                    $quantity = sanitize_positive_decimal($state);
                     $type = $get('adjustment_type');
 
                     if ($type === InventoryAdjustment::ADJUSTMENT_TYPE_SET) {
@@ -465,7 +467,7 @@ JS
                 ->type('text')
                 ->required()
                 ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
-                    if (self::sanitizeMoneyValue($value) < 0) {
+                    if (sanitize_decimal($value) < 0) {
                         $fail('Harga tidak boleh negatif.');
                     }
                 })
@@ -478,7 +480,7 @@ JS))
                 ->dehydrated(false)
                 ->hidden(fn (SchemaGet $get): bool => $get('adjustment_type') !== InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION)
                 ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get): void {
-                    $unitCost = self::sanitizeMoneyValue($state);
+                    $unitCost = sanitize_decimal($state);
                     $set('unit_cost', $unitCost);
                     self::syncLineItemCost($set, $get, unitCostOverride: $unitCost);
                 })
@@ -555,7 +557,7 @@ JS))
     protected static function normalizeLineItemPayloadData(array $data): array
     {
         $inputQuantity = $data['adjustment_quantity'] ?? null;
-        $quantity = self::sanitizeMoneyValue($inputQuantity);
+        $quantity = sanitize_positive_decimal($inputQuantity);
         $type = $data['adjustment_type'] ?? InventoryAdjustment::ADJUSTMENT_TYPE_ADDITION;
 
         if ($type === InventoryAdjustment::ADJUSTMENT_TYPE_SET) {
@@ -569,7 +571,7 @@ JS))
         $data['adjustment_quantity'] = self::formatDecimal($quantity, 0);
 
         $unitCostInput = $data['unit_cost'] ?? $data['unit_price'] ?? 0;
-        $unitCost = self::sanitizeMoneyValue($unitCostInput);
+        $unitCost = sanitize_decimal($unitCostInput);
         $data['unit_cost'] = $unitCost;
         $data['unit_price'] = self::formatCurrencyValue($unitCost);
 
@@ -994,63 +996,6 @@ JS))
     {
         return filled($get('adjustment_date'))
             && filled($get('default_warehouse_id'));
-    }
-
-    protected static function sanitizeMoneyValue(mixed $value): float
-    {
-        if (blank($value)) {
-            return 0.0;
-        }
-
-        if (is_int($value) || is_float($value)) {
-            return (float) $value;
-        }
-
-        $numericString = preg_replace('/[^0-9,.-]/', '', (string) $value) ?? '';
-
-        if ($numericString === '' || $numericString === '-') {
-            return 0.0;
-        }
-
-        $sign = str_starts_with($numericString, '-') ? -1 : 1;
-        $numericString = ltrim($numericString, '-');
-
-        $lastDot = strrpos($numericString, '.');
-        $lastComma = strrpos($numericString, ',');
-        $decimalSeparator = null;
-
-        if ($lastDot !== false && $lastComma !== false) {
-            $decimalSeparator = $lastComma > $lastDot ? ',' : '.';
-        } elseif ($lastComma !== false) {
-            $fractionLength = strlen($numericString) - $lastComma - 1;
-            if ($fractionLength > 0 && $fractionLength <= 2) {
-                $decimalSeparator = ',';
-            }
-        } elseif ($lastDot !== false) {
-            $fractionLength = strlen($numericString) - $lastDot - 1;
-            if ($fractionLength > 0 && $fractionLength <= 2) {
-                $decimalSeparator = '.';
-            }
-        }
-
-        if ($decimalSeparator !== null) {
-            $decimalPosition = $decimalSeparator === '.' ? $lastDot : $lastComma;
-            $integerPart = substr($numericString, 0, $decimalPosition);
-            $fractionalPart = substr($numericString, $decimalPosition + 1);
-
-            $integerDigits = preg_replace('/[^0-9]/', '', $integerPart) ?? '';
-            $fractionalDigits = preg_replace('/[^0-9]/', '', $fractionalPart) ?? '';
-
-            $normalized = $integerDigits . '.' . $fractionalDigits;
-        } else {
-            $normalized = preg_replace('/[^0-9]/', '', $numericString) ?? '';
-        }
-
-        if ($normalized === '' || $normalized === '.') {
-            return 0.0;
-        }
-
-        return $sign * (float) $normalized;
     }
 
     protected static function sanitizeDecimal($value): float
