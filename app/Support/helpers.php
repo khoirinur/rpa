@@ -176,3 +176,19 @@ if (! function_exists('sanitize_decimal_log_debug')) {
         }
     }
 }
+
+if (! function_exists('normalize_item_name')) {
+    function normalize_item_name(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $stringValue = (string) $value;
+        $stringValue = str_replace(["\u{00A0}", "\xC2\xA0"], ' ', $stringValue);
+        $stringValue = preg_replace('/\s+/u', ' ', $stringValue) ?? '';
+        $stringValue = trim($stringValue);
+
+        return $stringValue === '' ? null : $stringValue;
+    }
+}

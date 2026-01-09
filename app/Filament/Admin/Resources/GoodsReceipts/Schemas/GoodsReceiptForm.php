@@ -30,6 +30,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\RawJs;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -187,7 +188,7 @@ class GoodsReceiptForm
                         self::makeEditReceiptItemAction(),
                     ])
                     ->extraAttributes(['data-row-click-action' => 'edit_receipt_item'])
-                    ->itemLabel(fn (array $state): string => $state['item_name'] ?? 'Item Penerimaan')
+                    ->itemLabel(fn (array $state): string => normalize_item_name($state['item_name'] ?? null) ?? 'Item Penerimaan')
                     ->helperText('Klik baris untuk menyesuaikan qty terima, susut, atau catatan QC.')
                     ->disabled(fn (SchemaGet $get): bool => blank($get('live_chicken_purchase_order_id')))
                     ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get, Repeater $component): void {
@@ -448,7 +449,7 @@ class GoodsReceiptForm
             ->map(function (array $item): array {
                 $productId = $item['product_id'] ?? null;
                 $itemCode = $item['item_code'] ?? null;
-                $itemName = $item['item_name'] ?? ($item['name'] ?? null);
+                $itemName = normalize_item_name($item['item_name'] ?? ($item['name'] ?? null));
                 $unit = strtolower((string) ($item['unit'] ?? 'kg'));
                 $rawQuantity = (float) ($item['quantity'] ?? 0);
                 $rawWeight = (float) ($item['weight_kg'] ?? $item['quantity_kg'] ?? 0);
@@ -680,7 +681,7 @@ class GoodsReceiptForm
         $details = self::getLiveBirdProductDetails($productId);
 
         if ($details) {
-            $data['item_name'] = $details['name'] ?? null;
+            $data['item_name'] = normalize_item_name($details['name'] ?? null);
             $data['item_code'] = $details['code'] ?? null;
             $data['unit'] = self::resolveProductUnitCode($details['unit_id'] ?? null);
         }
@@ -933,33 +934,46 @@ class GoodsReceiptForm
             Hidden::make('buffer_key'),
             Placeholder::make('table_item_summary')
                 ->hiddenLabel()
-                ->content(function (SchemaGet $get): string {
-                    $name = $get('item_name') ?: 'Item belum diberi nama';
-                    $code = $get('item_code') ? sprintf('[%s]', $get('item_code')) : null;
-                    $unit = strtoupper((string) ($get('unit') ?? 'KG'));
+                ->content(function (SchemaGet $get): HtmlString {
+                    $segments = array_filter([
+                        normalize_item_name($get('item_name')) ?? 'Item belum diberi nama',
+                        $get('item_code') ? sprintf('[%s]', $get('item_code')) : null,
+                        strtoupper((string) ($get('unit') ?? 'KG')),
+                    ]);
 
-                    return implode(PHP_EOL, array_filter([$name, $code, $unit]));
+                    return self::convertNewlinesToBreaks(implode(PHP_EOL, array_values($segments)));
                 })
-                ->extraAttributes(['class' => 'whitespace-pre-line leading-tight text-sm font-medium text-gray-900']),
+                ->html()
+                ->extraAttributes(['class' => 'leading-tight text-sm font-medium text-gray-900']),
             Placeholder::make('table_order_summary')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => self::formatUnitAwareSummary(
-                    $get('unit'),
-                    $get('ordered_quantity'),
-                    $get('ordered_weight_kg')
-                ))
-                ->extraAttributes(['class' => 'text-sm text-gray-700 whitespace-pre-line tabular-nums text-right']),
+                ->content(function (SchemaGet $get): HtmlString {
+                    $summary = self::formatUnitAwareSummary(
+                        $get('unit'),
+                        $get('ordered_quantity'),
+                        $get('ordered_weight_kg')
+                    );
+
+                    return self::convertNewlinesToBreaks($summary);
+                })
+                ->html()
+                ->extraAttributes(['class' => 'text-sm text-gray-700 tabular-nums text-right']),
             Placeholder::make('table_received_summary')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => self::formatUnitAwareSummary(
-                    $get('unit'),
-                    $get('received_quantity'),
-                    $get('received_weight_kg')
-                ))
-                ->extraAttributes(['class' => 'text-sm font-semibold text-gray-900 whitespace-pre-line tabular-nums text-right']),
+                ->content(function (SchemaGet $get): HtmlString {
+                    $summary = self::formatUnitAwareSummary(
+                        $get('unit'),
+                        $get('received_quantity'),
+                        $get('received_weight_kg')
+                    );
+
+                    return self::convertNewlinesToBreaks($summary);
+                })
+                ->html()
+                ->extraAttributes(['class' => 'text-sm font-semibold text-gray-900 tabular-nums text-right']),
             Placeholder::make('table_loss_summary')
                 ->hiddenLabel()
-                ->content(function (SchemaGet $get): string {
+                ->content(function (SchemaGet $get): HtmlString {
                     $lossSummary = self::formatUnitAwareSummary(
                         $get('unit'),
                         $get('loss_quantity'),
@@ -967,18 +981,20 @@ class GoodsReceiptForm
                     );
                     $tolerance = number_format((float) ($get('tolerance_percentage') ?? 0), 2, ',', '.');
 
-                    return trim($lossSummary . PHP_EOL . sprintf('Susut %s%%', $tolerance));
+                    return self::convertNewlinesToBreaks(trim($lossSummary . PHP_EOL . sprintf('Susut %s%%', $tolerance)));
                 })
-                ->extraAttributes(['class' => 'text-sm text-danger-600 whitespace-pre-line tabular-nums text-right']),
+                ->html()
+                ->extraAttributes(['class' => 'text-sm text-danger-600 tabular-nums text-right']),
             Placeholder::make('table_qc_summary')
                 ->hiddenLabel()
-                ->content(function (SchemaGet $get): string {
+                ->content(function (SchemaGet $get): HtmlString {
                     $returnFlag = $get('is_returned') ? 'Perlu Retur' : 'OK';
                     $notes = Str::limit((string) ($get('qc_notes') ?? 'Tidak ada catatan'), 60);
 
-                    return $returnFlag . PHP_EOL . $notes;
+                    return self::convertNewlinesToBreaks($returnFlag . PHP_EOL . $notes);
                 })
-                ->extraAttributes(['class' => 'text-sm text-gray-700 whitespace-pre-line']),
+                ->html()
+                ->extraAttributes(['class' => 'text-sm text-gray-700']),
         ];
     }
 
@@ -1095,21 +1111,27 @@ JS
             Hidden::make('buffer_key'),
             Placeholder::make('table_cost_summary')
                 ->hiddenLabel()
-                ->content(function (SchemaGet $get): string {
+                ->content(function (SchemaGet $get): HtmlString {
                     $name = $get('name') ?: 'Biaya tanpa nama';
                     $code = $get('coa_reference') ? sprintf('[%s]', $get('coa_reference')) : null;
 
-                    return implode(PHP_EOL, array_filter([$name, $code]));
+                    return self::convertNewlinesToBreaks(implode(PHP_EOL, array_filter([$name, $code])));
                 })
-                ->extraAttributes(['class' => 'whitespace-pre-line leading-tight text-sm font-medium text-gray-900']),
+                ->html()
+                ->extraAttributes(['class' => 'leading-tight text-sm font-medium text-gray-900']),
             Placeholder::make('table_cost_amount')
                 ->hiddenLabel()
                 ->content(fn (SchemaGet $get): string => self::formatCurrency($get('amount')))
                 ->extraAttributes(['class' => 'text-right font-semibold tabular-nums text-sm text-gray-900']),
             Placeholder::make('table_cost_notes')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => Str::limit((string) ($get('notes') ?? 'Tidak ada catatan'), 120))
-                ->extraAttributes(['class' => 'text-sm text-gray-700 whitespace-pre-line']),
+                ->content(function (SchemaGet $get): HtmlString {
+                    $notes = Str::limit((string) ($get('notes') ?? 'Tidak ada catatan'), 120);
+
+                    return self::convertNewlinesToBreaks($notes);
+                })
+                ->html()
+                ->extraAttributes(['class' => 'text-sm text-gray-700']),
         ];
     }
 
@@ -1324,7 +1346,7 @@ JS
         return [
             'product_id' => $data['product_id'] ?? null,
             'item_code' => $data['item_code'] ?? null,
-            'item_name' => $data['item_name'] ?? null,
+            'item_name' => normalize_item_name($data['item_name'] ?? null),
             'unit' => $data['unit'] ?? 'kg',
             'ordered_quantity' => $orderedQty,
             'ordered_weight_kg' => $orderedWeight,
@@ -1577,6 +1599,13 @@ JS
         }
 
         return null;
+    }
+
+    protected static function convertNewlinesToBreaks(?string $value): HtmlString
+    {
+        $escaped = e((string) ($value ?? ''));
+
+        return new HtmlString(str_replace(["\r\n", "\r", "\n"], '<br>', $escaped));
     }
 
     protected static function shouldDisplayQuantityField(mixed $unit): bool

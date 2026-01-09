@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\ActivityLog;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryBalance extends Model
@@ -50,5 +52,11 @@ class InventoryBalance extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function activityLogs(): MorphMany
+    {
+        return $this->morphMany(ActivityLog::class, 'subject')
+            ->latest('performed_at');
     }
 }

@@ -20,7 +20,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
-use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Utilities\Get as SchemaGet;
 use Filament\Schemas\Components\Utilities\Set as SchemaSet;
 use Filament\Schemas\Components\Section;
@@ -28,11 +27,13 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Support\RawJs;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use function sanitize_decimal;
 use function sanitize_positive_decimal;
 use function sanitize_rupiah;
+use function normalize_item_name;
 
 class LiveChickenPurchaseOrderForm
 {
@@ -386,26 +387,28 @@ JS))
             Hidden::make('notes'),
             Placeholder::make('table_item_summary')
                 ->hiddenLabel()
-                ->content(function (SchemaGet $get): string {
-                    $label = $get('item_name') ?: 'Item belum diberi nama';
+                ->content(function (SchemaGet $get): HtmlString {
+                    $label = normalize_item_name($get('item_name')) ?? 'Item belum diberi nama';
                     $code = $get('item_code');
                     $notes = $get('notes');
 
-                    $parts = [$label];
+                    $segments = array_filter([
+                        $label,
+                        $code ? sprintf('[%s]', $code) : null,
+                        $notes,
+                    ]);
 
-                    if ($code) {
-                        $parts[] = sprintf('[%s]', $code);
-                    }
+                    $lines = array_map(
+                        fn (string $segment): string => str_replace(["\r\n", "\r", "\n"], '<br>', e($segment)),
+                        array_values($segments)
+                    );
 
-                    if ($notes) {
-                        $parts[] = $notes;
-                    }
-
-                    return implode(PHP_EOL, array_filter($parts));
+                    return new HtmlString(implode('<br>', $lines));
                 })
+                ->html()
                 ->color('primary')
                 ->extraAttributes([
-                    'class' => 'whitespace-pre-line leading-tight text-sm font-medium',
+                    'class' => 'leading-tight text-sm font-medium',
                 ]),
             Placeholder::make('table_quantity')
                 ->hiddenLabel()
@@ -762,10 +765,13 @@ JS
     {
         $details = self::getLiveBirdProductDetails($data['product_id'] ?? null);
 
+        $resolvedName = $data['item_name'] ?? $details['name'] ?? null;
+        $resolvedName = normalize_item_name($resolvedName);
+
         return [
             'product_id' => $data['product_id'] ?? $details['id'] ?? null,
             'item_code' => $data['item_code'] ?? $details['code'] ?? null,
-            'item_name' => $data['item_name'] ?? $details['name'] ?? null,
+            'item_name' => $resolvedName ?: null,
             'quantity' => sanitize_positive_decimal($data['quantity'] ?? 0),
             'unit' => $data['unit'] ?? 'ekor',
             'unit_price' => sanitize_decimal($data['unit_price'] ?? 0),
@@ -994,4 +1000,5 @@ JS
         $unitPrice = sanitize_decimal($rawUnitPrice);
         return $quantity * $unitPrice;
     }
+
 }

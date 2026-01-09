@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\InventoryBalances;
 use App\Filament\Admin\Resources\InventoryBalances\Pages\ListInventoryBalances;
 use App\Filament\Admin\Resources\InventoryBalances\Pages\ViewInventoryBalance;
 use App\Filament\Admin\Resources\InventoryBalances\Schemas\InventoryBalanceInfolist;
+use App\Models\ActivityLog;
 use App\Models\InventoryBalance;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -203,6 +204,34 @@ class InventoryBalanceResource extends Resource
             ->with(['product', 'warehouse', 'unit']);
     }
 
+    public static function getBalanceHistoryEntries(?InventoryBalance $record, int $limit = 8): array
+    {
+        if (! $record) {
+            return [];
+        }
+
+        $logs = ActivityLog::query()
+            ->where('subject_type', $record->getMorphClass())
+            ->where('subject_id', $record->getKey())
+            ->latest('performed_at')
+            ->with('user')
+            ->limit($limit)
+            ->get();
+
+        return $logs
+            ->map(function (ActivityLog $log): array {
+                return [
+                    'id' => $log->getKey(),
+                    'timestamp' => self::formatDatetime($log->performed_at),
+                    'action' => ActivityLog::formatActionType($log->action_type),
+                    'description' => $log->description ?? '-',
+                    'user' => $log->user?->name ?? 'Sistem',
+                    'changes' => self::summarizeBalanceChanges($log->changes ?? []),
+                ];
+            })
+            ->all();
+    }
+
     public static function formatQuantity($value): string
     {
         $number = (float) ($value ?? 0);
@@ -289,5 +318,33 @@ class InventoryBalanceResource extends Resource
         }
 
         return trim(sprintf('%s #%s', class_basename((string) $type), $id ?: '-'));
+    }
+
+    protected static function summarizeBalanceChanges(?array $changes): array
+    {
+        if (empty($changes)) {
+            return [];
+        }
+
+        $fields = [
+            'on_hand_quantity' => 'On Hand',
+            'available_quantity' => 'Tersedia',
+            'incoming_quantity' => 'Sedang Masuk',
+            'reserved_quantity' => 'Reservasi',
+        ];
+
+        $summary = [];
+
+        foreach ($fields as $key => $label) {
+            if (array_key_exists($key, $changes)) {
+                $summary[$label] = self::formatQuantity($changes[$key]);
+            }
+        }
+
+        if (array_key_exists('average_cost', $changes)) {
+            $summary['Biaya Rata-rata'] = self::formatCurrency($changes['average_cost']);
+        }
+
+        return $summary;
     }
 }

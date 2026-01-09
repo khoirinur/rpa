@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\InventoryBalances\Schemas;
 
 use App\Filament\Admin\Resources\InventoryBalances\InventoryBalanceResource;
 use App\Models\InventoryBalance;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -56,13 +57,15 @@ class InventoryBalanceInfolist
                             ->formatStateUsing(fn ($state): string => InventoryBalanceResource::formatDatetime($state)),
                     ])
                     ->columns(3),
-                Section::make('Catatan')
+                Section::make('Riwayat Perubahan Saldo')
                     ->schema([
-                        TextEntry::make('last_source_type')
-                            ->label('Sumber Perubahan')
-                            ->formatStateUsing(fn ($state, ?InventoryBalance $record): string => InventoryBalanceResource::formatSource($record)),
+                        ViewEntry::make('balance_history')
+                            ->view('filament.admin.inventory-balances.history-card')
+                            ->viewData(fn (?InventoryBalance $record): array => [
+                                'entries' => InventoryBalanceResource::getBalanceHistoryEntries($record),
+                            ]),
                     ])
-                    ->columns(1),
+                    ->columnSpanFull(),
             ]);
     }
 }

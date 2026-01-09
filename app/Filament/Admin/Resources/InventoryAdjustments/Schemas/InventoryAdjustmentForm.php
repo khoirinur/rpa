@@ -28,10 +28,12 @@ use Filament\Schemas\Components\Utilities\Set as SchemaSet;
 use Filament\Schemas\Schema;
 use Closure;
 use Filament\Support\RawJs;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Throwable;
 use function sanitize_decimal;
 use function sanitize_positive_decimal;
+use function normalize_item_name;
 
 class InventoryAdjustmentForm
 {
@@ -147,7 +149,7 @@ class InventoryAdjustmentForm
                         self::makeEditLineItemAction(),
                     ])
                     ->extraAttributes(['data-row-click-action' => 'edit_line_item'])
-                    ->itemLabel(fn (array $state): string => $state['item_name'] ?? 'Baris Penyesuaian')
+                    ->itemLabel(fn (array $state): string => normalize_item_name($state['item_name'] ?? null) ?? 'Baris Penyesuaian')
                     ->afterStateUpdated(function (?array $state, SchemaSet $set): void {
                         self::syncSummary($set, $state ?? []);
                     })
@@ -264,7 +266,7 @@ JS))
         if ($product) {
             $state['product_id'] = $product->id;
             $state['item_code'] = $product->code;
-            $state['item_name'] = $product->name;
+            $state['item_name'] = normalize_item_name($product->name);
             $state['unit_id'] = $product->unit_id;
         }
 
@@ -295,10 +297,13 @@ JS))
             Hidden::make('__draft'),
             Placeholder::make('table_summary')
                 ->hiddenLabel()
-                ->content(fn (SchemaGet $get): string => self::formatLineItemSummary($get))
+                ->content(fn (SchemaGet $get): HtmlString => self::convertNewlinesToBreaks(
+                    self::formatLineItemSummary($get)
+                ))
+                ->html()
                 ->columnSpan(5)
                 ->extraAttributes([
-                    'class' => 'whitespace-pre-line leading-tight text-sm text-primary-700 font-semibold',
+                    'class' => 'leading-tight text-sm text-primary-700 font-semibold',
                 ]),
             Placeholder::make('table_snapshot')
                 ->hiddenLabel()
@@ -598,7 +603,7 @@ JS))
             'id' => $data['id'] ?? null,
             'product_id' => $data['product_id'] ?? null,
             'item_code' => $data['item_code'] ?? null,
-            'item_name' => $data['item_name'] ?? null,
+            'item_name' => normalize_item_name($data['item_name'] ?? null),
             'unit_id' => $data['unit_id'] ?? null,
             'warehouse_id' => $data['warehouse_id'] ?? null,
             'adjustment_type' => $adjustmentType,
@@ -863,7 +868,7 @@ JS))
     protected static function formatLineItemSummary(SchemaGet $get): string
     {
         $parts = [];
-        $label = $get('item_name') ?: 'Barang belum dipilih';
+        $label = normalize_item_name($get('item_name')) ?? 'Barang belum dipilih';
         $parts[] = $label;
 
         if ($code = $get('item_code')) {
@@ -879,6 +884,13 @@ JS))
         }
 
         return implode(PHP_EOL, array_filter($parts));
+    }
+
+    protected static function convertNewlinesToBreaks(?string $value): HtmlString
+    {
+        $escaped = e((string) ($value ?? ''));
+
+        return new HtmlString(str_replace(["\r\n", "\r", "\n"], '<br>', $escaped));
     }
 
     protected static function resolveWarehouseName(?int $warehouseId): ?string
