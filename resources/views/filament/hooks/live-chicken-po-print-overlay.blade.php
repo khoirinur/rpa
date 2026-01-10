@@ -12,7 +12,7 @@
             <div class="lcpo-bar">
                 <div>
                     <p class="lcpo-label">Print Preview</p>
-                    <p class="lcpo-title" x-text="title || 'Pesanan Pembelian'"></p>
+                    <p class="lcpo-title" x-text="title || 'Print Dokumen'"></p>
                 </div>
                 <div class="lcpo-actions">
                     <button type="button" class="lcpo-close" @click="close()">Tutup</button>
@@ -112,15 +112,18 @@
             src: null,
             title: null,
             init() {
-                window.addEventListener('live-chicken-po-print-open', (event) => {
+                const openHandler = (event) => {
                     const detail = event.detail || {};
                     this.src = detail.url || null;
-                    this.title = detail.title || 'Pesanan Pembelian';
+                    this.title = detail.title || 'Print Dokumen';
                     this.open = Boolean(this.src);
                     document.body.classList.toggle('lcpo-no-scroll', this.open);
-                });
+                };
 
+                window.addEventListener('live-chicken-po-print-open', openHandler);
+                window.addEventListener('goods-receipt-print-open', openHandler);
                 window.addEventListener('live-chicken-po-print-close', () => this.close());
+                window.addEventListener('goods-receipt-print-close', () => this.close());
             },
             close() {
                 this.open = false;

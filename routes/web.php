@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\GoodsReceiptPrintController;
 use App\Http\Controllers\LiveChickenPurchaseOrderPrintController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,4 +11,7 @@ Route::get('/', function () {
 Route::middleware(['auth'])->group(function (): void {
     Route::get('live-chicken-purchase-orders/{liveChickenPurchaseOrder}/print', LiveChickenPurchaseOrderPrintController::class)
         ->name('live-chicken-purchase-orders.print');
+
+    Route::get('goods-receipts/{goodsReceipt}/print', GoodsReceiptPrintController::class)
+        ->name('goods-receipts.print');
 });

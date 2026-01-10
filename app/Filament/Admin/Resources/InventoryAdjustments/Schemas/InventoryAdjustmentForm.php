@@ -301,10 +301,16 @@ JS))
                     self::formatLineItemSummary($get)
                 ))
                 ->html()
+                ->color('primary')
                 ->columnSpan(5)
                 ->extraAttributes([
-                    'class' => 'leading-tight text-sm text-primary-700 font-semibold',
+                    'class' => 'leading-tight text-sm font-medium',
                 ]),
+            Placeholder::make('table_warehouse')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::resolveWarehouseName($get('warehouse_id')) ?? '—')
+                ->columnSpan(2)
+                ->extraAttributes(['class' => 'text-sm text-gray-600']),
             Placeholder::make('table_snapshot')
                 ->hiddenLabel()
                 ->content(fn (SchemaGet $get): string => sprintf(
@@ -345,6 +351,7 @@ JS))
     {
         return [
             TableColumn::make('Barang')->width('28rem'),
+            TableColumn::make('Gudang')->width('12rem'),
             TableColumn::make('Stok')->width('8rem'),
             TableColumn::make('Qty / Target')->width('12rem'),
             TableColumn::make('Biaya')->width('10rem'),
@@ -873,10 +880,6 @@ JS))
 
         if ($code = $get('item_code')) {
             $parts[] = sprintf('[%s]', $code);
-        }
-
-        if ($warehouse = self::resolveWarehouseName($get('warehouse_id'))) {
-            $parts[] = sprintf('Gudang: %s', $warehouse);
         }
 
         if ($notes = $get('notes')) {

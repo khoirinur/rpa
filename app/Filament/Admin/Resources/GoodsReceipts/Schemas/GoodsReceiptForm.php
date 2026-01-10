@@ -943,8 +943,9 @@ class GoodsReceiptForm
 
                     return self::convertNewlinesToBreaks(implode(PHP_EOL, array_values($segments)));
                 })
+                ->color('primary')
                 ->html()
-                ->extraAttributes(['class' => 'leading-tight text-sm font-medium text-gray-900']),
+                ->extraAttributes(['class' => 'leading-tight text-sm font-medium']),
             Placeholder::make('table_order_summary')
                 ->hiddenLabel()
                 ->content(function (SchemaGet $get): HtmlString {

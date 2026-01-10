@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $metadata['title'] ?? 'Pesanan Pembelian' }}</title>
+    <title>{{ $metadata['title'] ?? 'Penerimaan Barang' }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -57,7 +57,7 @@
             border-radius: 12px;
             padding: 10px 16px;
             margin-bottom: 16px;
-            font-size: 12px;
+            font-size: 0.9px;
         }
         #capture-area {
             background: #fff;
@@ -211,12 +211,15 @@
 <body>
     @php
         $companyAddress = trim($metadata['company_address'] ?? config('app.company_address', 'Jl. Totok Kerot, Suko, Menang, Kec. Pagu Kab. Kediri Jawa Timur 64183 Indonesia'));
-        $shippingAddress = trim($metadata['shipping_address'] ?? '') ?: null;
         $companyAddressLines = array_values(array_filter([
             $companyAddress,
             $metadata['company_city'] ?? null,
             ! empty($metadata['company_phone']) ? 'Telp: ' . $metadata['company_phone'] : null,
         ]));
+        $supplierAddress = trim($metadata['supplier_address'] ?? '');
+        $supplierAddressLines = $supplierAddress !== ''
+            ? array_values(array_filter(preg_split("/(\r\n|\r|\n)/", $supplierAddress) ?: []))
+            : [];
     @endphp
     <div class="controls">
         <button id="btn-copy" type="button">Salin Gambar</button>
@@ -236,24 +239,24 @@
                 </div>
             </div>
             <div class="doc-title-block">
-                <div class="doc-title">Pesanan Pembelian</div>
+                <div class="doc-title">Penerimaan Barang</div>
                 <div class="doc-meta">
                     <table>
                         <tr>
+                            <td>No. Form :</td>
+                            <td>{{ $metadata['form_number'] ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td>No. Faktur :</td>
+                            <td>{{ $metadata['invoice_number'] ?? '—' }}</td>
+                        </tr>
+                        <tr>
                             <td>Tanggal :</td>
-                            <td>{{ $metadata['order_date'] ?? '—' }}</td>
+                            <td>{{ $metadata['received_date'] ?? '—' }}</td>
                         </tr>
                         <tr>
-                            <td>Nomor :</td>
-                            <td>{{ $metadata['po_number'] ?? '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td>Syarat Pembayaran :</td>
-                            <td>{{ $metadata['payment_term'] ?? '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td>Tanggal Kirim :</td>
-                            <td>{{ $metadata['delivery_date'] ?? '—' }}</td>
+                            <td>No. Polisi :</td>
+                            <td>{{ $metadata['vehicle_plate'] ?? '—' }}</td>
                         </tr>
                     </table>
                 </div>
@@ -262,12 +265,12 @@
 
         <div class="info-section">
             <div class="info-row">
-                <div><span class="info-label">Kepada Yth.</span>: <b>{{ $metadata['supplier_name'] ?? '—' }}</b></div>
+                <div><span class="info-label">Terima dari</span>: <b>{{ $metadata['supplier_name'] ?? '—' }}</b></div>
             </div>
             <div class="info-row" style="margin-top: 6px;">
                 <div>
-                    <span class="info-label">Alamat Kirim</span>:
-                    <span style="white-space: pre-line;">{{ $shippingAddress ?? '—' }}</span>
+                    <span class="info-label">Alamat</span>:
+                    <span style="white-space: pre-line;">{!! $supplierAddressLines ? implode('<br>', array_map(fn ($line) => e(trim($line)), $supplierAddressLines)) : '—' !!}</span>
                 </div>
             </div>
         </div>
@@ -276,32 +279,28 @@
             <thead>
                 <tr>
                     <th>No.</th>
+                    <th>No. PO</th>
+                    <th>Gudang</th>
                     <th>Kode</th>
                     <th>Nama Barang</th>
-                    <th>Catatan</th>
                     <th>Qty.</th>
                     <th>Sat.</th>
-                    <th>@Harga</th>
-                    <th>Diskon</th>
-                    <th>Total</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($lineItems as $item)
                     <tr>
                         <td class="numeric">{{ $item['index'] }}</td>
-                        <td>{{ $item['item_code'] ?? '—' }}</td>
+                        <td>{{ $item['po_number'] ?? '—' }}</td>
+                        <td>{{ $item['warehouse'] }}</td>
+                        <td>{{ $item['item_code'] }}</td>
                         <td>{{ $item['item_name'] }}</td>
-                        <td>{{ $item['notes'] ?? '—' }}</td>
                         <td class="numeric">{{ $item['quantity_display'] }}</td>
                         <td style="text-align:center;">{{ $item['unit'] }}</td>
-                        <td class="numeric">{{ $item['unit_price_display'] }}</td>
-                        <td class="numeric">{{ $item['discount_label'] }}</td>
-                        <td class="numeric">{{ $item['line_total_display'] }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" style="text-align:center; padding:18px;">
+                        <td colspan="7" style="text-align:center; padding:18px;">
                             Belum ada rincian barang.
                         </td>
                     </tr>
@@ -313,19 +312,20 @@
                 <div class="notes">
                     Keterangan :
                     <br>
-                    {!! nl2br(e($metadata['notes'] ?? '-')) !!}
+                    {!! nl2br(e($metadata['arrival_notes'] ?? '-')) !!}
+                    <br><br>
                 </div>
                 <div class="signature-grid">
                     <div class="signature-cell">
+                        Bag. Gudang,
+                        <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                    </div>
+                    <div class="signature-cell">
+                        Admin,
+                        <div style="margin-top:80px; border-top:1px dotted #000;"></div>
+                    </div>
+                    <div class="signature-cell">
                         Bag. Pembelian,
-                        <div style="margin-top:80px; border-top:1px dotted #000;"></div>
-                    </div>
-                    <div class="signature-cell">
-                        Menyetujui,
-                        <div style="margin-top:80px; border-top:1px dotted #000;"></div>
-                    </div>
-                    <div class="signature-cell">
-                        Supplier,
                         <div style="margin-top:80px; border-top:1px dotted #000;"></div>
                     </div>
                 </div>
@@ -338,10 +338,6 @@
                             <td>{{ $row['formatted'] }}</td>
                         </tr>
                     @endforeach
-                    <tr style="border-top: solid 2px black">
-                        <td><strong>Total setelah PPh</strong></td>
-                        <td><strong>{{ $summary[3]['formatted'] ?? '—' }}</strong></td>
-                    </tr>
                 </table>
             </div>
         </div>
@@ -417,7 +413,8 @@
                 html2canvas(captureArea, { scale: 2, backgroundColor: '#ffffff', useCORS: true, allowTaint: true })
                     .then(canvas => {
                         const link = document.createElement('a');
-                        link.download = metadata.po_number ? `${metadata.po_number}.png` : 'po-output.png';
+                        const fallback = metadata.form_number ? `${metadata.form_number}.png` : 'goods-receipt.png';
+                        link.download = fallback;
                         link.href = canvas.toDataURL('image/png');
                         link.click();
                     })
