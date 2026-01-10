@@ -142,7 +142,42 @@ Status Legend:
         - [ ] Update status PO (Partial/Complete) secara otomatis.
         - [ ] Posting stok masuk ke gudang tujuan dan log aktivitas.
 - [x] **Stock In:** Form pencatatan masuk barang ke gudang.
-
+- [ ] **Faktur Pembelian:**
+    - [ ] **Header Form**
+        - [ ] Pilih PO atau GR sebagai sumber faktur.
+        - [ ] Auto-fill supplier, tanggal faktur, dan gudang tujuan.
+        - [ ] Input nomor faktur pajak dan tanggal jatuh tempo.
+    - [ ] **Validasi Konteks**
+        - [ ] Tidak boleh mencari atau menambahkan barang sebelum memilih supplier.
+        - [ ] Semua field wajib di header harus terisi sebelum tab detail aktif.
+    - [ ] **Rincian Barang**
+        - [ ] Komponen cari barang memunculkan modal detail ketika dipilih.
+        - [ ] Kolom editable: Nama item, Qty + pilihan satuan (Ekor/Kg), Harga Satuan, Diskon (persen atau nominal, ma  100% & <= harga), Checkbox Pajak 11%, Catatan opsional.
+        - [ ] Subtotal otomatis, tersedia aksi duplikat/baris baru/hapus.
+    - [ ] **Info Lainnya**
+        - [ ] Syarat pembayaran dengan preset Manual, Net 7/15/30/45/60, COD default, lengkap dengan deskripsi.
+        - [ ] Pilih Rekening Kas/Bank untuk pembayaran faktur.
+        - [ ] Checkbox pajak (Kena vs Termasuk) mengatur cara hitung.
+        - [ ] Keterangan bebas serta bidang FOB (alamat tujuan + titik pengiriman) opsional.
+    - [ ] **Uang Muka**
+        - [ ] Input pembayaran uang muka dengan tanggal, metode, dan akun kas/bank.
+        - [ ] Otomatis mengurangi total faktur dengan jumlah uang muka.
+    - [ ] **Biaya Lainnya (Opsional)**
+        - [ ] Pencarian COA mendukung kode/nama, memunculkan modal biaya.
+        - [ ] Modal berisi nama biaya editable, nominal, catatan, dan checkbox alokasi (membagi biaya rata terhadap qty).
+    - [ ] **Ringkasan & Footer**
+        - [ ] Ringkasan harga: Subtotal, Diskon global (persen/nominal), Pajak (modal untuk memilih DPP 100%, 11/12, 11/12 10%, 40%, 30%, 20%, 10% dan tarif 0%, 10%, 11%, 12%), Total akhir.
+        - [ ] Panel kanan: Simpan / Simpan Draft, modal dokumen agnostik (multi-file jpg/png/pdf/docx/xlsx, 5MB per file) dengan daftar file + aksi download/hapus.
+        - [ ] Favorit PO: simpan konfigurasi (header, barang, biaya, info lainnya) dan muat ulang favorit ke form aktif.
+    - [ ] **Validasi Sebelum Simpan**
+        - [ ] Minimal satu barang tersimpan.
+        - [ ] Qty dan harga satuan harus > 0.
+        - [ ] Diskon tidak boleh negatif atau melampaui harga akhir.
+    - [ ] **Output Faktur**
+        - [ ] Membuat tombol Cetak dari tabel & halaman edit yang menampilkan preview fullscreen.
+        - [ ] Membuat view Cetak dokumen terpisah di route /live-chicken-purchase-orders/{purchaseOrderId}/print.
+        - [ ] View Cetak sudah memuat layout sesuai referensi #contoh-view.html lengkap dengan tombol salin/unduh gambar.
+        - [ ] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
 ## Phase 3: Production (Inti)
 - [ ] **Work Order (Penyembelihan):**
     - [ ] **Pra-Produksi & Penjadwalan**

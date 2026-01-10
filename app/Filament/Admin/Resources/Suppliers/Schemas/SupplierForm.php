@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Suppliers\Schemas;
 
 use App\Models\Supplier;
 use Filament\Actions\Action;
+use Filament\Schemas\Components\Grid;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
@@ -18,48 +19,70 @@ class SupplierForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(12)
             ->components([
-                Section::make('Identitas Supplier')
+                Grid::make()
+                    ->columns(1)
                     ->schema([
-                        TextInput::make('code')
-                            ->label('Kode Pemasok')
-                            ->required()
-                            ->maxLength(20)
-                            ->alphaDash()
-                            ->unique(ignoreRecord: true)
-                            ->helperText('Gunakan format S-XXXX agar konsisten.')
-                            ->suffixAction(
-                                Action::make('generate_code')
-                                    ->label('Generate')
-                                    ->icon('heroicon-m-sparkles')
-                                    ->action(function (Set $set): void {
-                                        $set('code', sprintf('S-%04d', random_int(1, 9999)));
-                                    }),
-                            ),
-                        TextInput::make('name')
-                            ->label('Nama Supplier')
-                            ->required()
-                            ->maxLength(150),
-                        Select::make('supplier_category_id')
-                            ->label('Kategori Supplier')
-                            ->relationship('supplierCategory', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->required()
-                            ->helperText('Wajib pilih kategori sesuai Master Supplier Categories.'),
-                        TextInput::make('npwp')
-                            ->label('NPWP')
-                            ->maxLength(30)
-                            ->mask('99.999.999.9-999.999')
-                            ->placeholder('00.000.000.0-000.000')
-                            ->helperText('Optional jika pemasok belum memiliki NPWP.'),
-                        Toggle::make('is_active')
-                            ->label('Status Aktif')
-                            ->default(true)
-                            ->inline(false),
+                        Section::make('Identitas Supplier')
+                            ->schema([
+                                TextInput::make('code')
+                                    ->label('Kode Pemasok')
+                                    ->required()
+                                    ->maxLength(20)
+                                    ->alphaDash()
+                                    ->unique(ignoreRecord: true)
+                                    ->helperText('Gunakan format S-XXXX agar konsisten.')
+                                    ->suffixAction(
+                                        Action::make('generate_code')
+                                            ->label('Generate')
+                                            ->icon('heroicon-m-sparkles')
+                                            ->action(function (Set $set): void {
+                                                $set('code', sprintf('S-%04d', random_int(1, 9999)));
+                                            }),
+                                    ),
+                                TextInput::make('name')
+                                    ->label('Nama Supplier')
+                                    ->required()
+                                    ->maxLength(150),
+                                Select::make('supplier_category_id')
+                                    ->label('Kategori Supplier')
+                                    ->relationship('supplierCategory', 'name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->required()
+                                    ->helperText('Wajib pilih kategori sesuai Master Supplier Categories.'),
+                                TextInput::make('npwp')
+                                    ->label('NPWP')
+                                    ->maxLength(30)
+                                    ->mask('99.999.999.9-999.999')
+                                    ->placeholder('00.000.000.0-000.000')
+                                    ->helperText('Optional jika pemasok belum memiliki NPWP.'),
+                                Toggle::make('is_active')
+                                    ->label('Status Aktif')
+                                    ->default(true)
+                                    ->inline(false),
+                            ])
+                            ->columns(2),
+                        Section::make('Informasi Bank')
+                            ->schema([
+                                TextInput::make('bank_account_name')
+                                    ->label('Atas Nama')
+                                    ->maxLength(120),
+                                TextInput::make('bank_name')
+                                    ->label('Nama Bank')
+                                    ->maxLength(80),
+                                TextInput::make('bank_account_number')
+                                    ->label('Nomor Rekening')
+                                    ->maxLength(60),
+                            ])
+                            ->columns(3),
                     ])
-                    ->columns(2),
+                    ->columnSpan([
+                        'default' => 12,
+                        'lg' => 6,
+                    ]),
                 Section::make('Kontak & Lokasi')
                     ->schema([
                         TextInput::make('owner_name')
@@ -85,8 +108,7 @@ class SupplierForm
 
                                 return $phones->isEmpty() ? null : $phones->implode(';');
                             })
-                            ->nullable()
-                            ->columnSpan(2),
+                            ->nullable(),
                         TextInput::make('contact_email')
                             ->label('Email Kontak')
                             ->email()
@@ -107,20 +129,11 @@ class SupplierForm
                             ->rows(3)
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
-                Section::make('Informasi Bank')
-                    ->schema([
-                        TextInput::make('bank_account_name')
-                            ->label('Atas Nama')
-                            ->maxLength(120),
-                        TextInput::make('bank_name')
-                            ->label('Nama Bank')
-                            ->maxLength(80),
-                        TextInput::make('bank_account_number')
-                            ->label('Nomor Rekening')
-                            ->maxLength(60),
-                    ])
-                    ->columns(3),
+                    ->columns(2)
+                    ->columnSpan([
+                        'default' => 12,
+                        'lg' => 6,
+                    ]),
             ]);
     }
 }
