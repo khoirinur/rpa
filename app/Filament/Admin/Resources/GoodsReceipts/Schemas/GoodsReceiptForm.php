@@ -937,8 +937,7 @@ class GoodsReceiptForm
                 ->content(function (SchemaGet $get): HtmlString {
                     $segments = array_filter([
                         normalize_item_name($get('item_name')) ?? 'Item belum diberi nama',
-                        $get('item_code') ? sprintf('[%s]', $get('item_code')) : null,
-                        strtoupper((string) ($get('unit') ?? 'KG')),
+                        $get('item_code') ? sprintf('[%s]', $get('item_code')) : null
                     ]);
 
                     return self::convertNewlinesToBreaks(implode(PHP_EOL, array_values($segments)));
