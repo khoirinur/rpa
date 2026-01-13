@@ -116,31 +116,31 @@ Status Legend:
         - [x] Membuat view Cetak dokumen terpisah di route /live-chicken-purchase-orders/{purchaseOrderId}/print.
         - [x] View Cetak sudah memuat layout sesuai referensi #contoh-view.html lengkap dengan tombol salin/unduh gambar.
         - [x] Export PO ke PDF dengan layout siap cetak dan daftar lampiran.
-- [ ] **Penerimaan Barang:**
-    - [ ] **Validasi PO & Header**
-        - [ ] Pilih PO yang sudah disetujui (statusnya sudah approved) sebagai sumber penerimaan.
-        - [ ] Auto-fill supplier, gudang tujuan, dan jadwal kirim dari PO.
-        - [ ] Izinkan override alamat kirim dengan log perubahan.
-    - [ ] **Pemeriksaan Kedatangan**
-        - [ ] Checklist kendaraan, nomor SJ pemasok, dan suhu kedatangan.
-        - [ ] Catat waktu tiba dan petugas pemeriksa.
-        - [ ] Upload foto dokumen pendukung (max 5MB per file, multi-upload).
-    - [ ] **Detail Item Diterima**
-        - [ ] Repeater item yang ditarik dari PO dengan qty pesan vs qty terima.
-        - [ ] Field toleransi susut, catatan QC, dan alasan selisih.
-        - [ ] Aksi split baris untuk pecah batch atau satuan.
-    - [ ] **Penanganan Selisih & Retur**
-        - [ ] Tandai item rusak/kurang untuk dibuatkan retur otomatis.
-        - [ ] Mapping COA biaya klaim atau diskon kredit.
-        - [ ] Notifikasi ke tim purchasing melalui Filament notification.
-    - [ ] **Biaya & Dokumen Pendukung**
-        - [ ] Input biaya bongkar, sewa alat, atau inspeksi dengan COA.
-        - [ ] Lampirkan dokumen hasil timbang dan foto kondisi barang.
-        - [ ] Simpan riwayat versi dokumen ketika diedit ulang.
-    - [ ] **Penyelesaian & Posting**
-        - [ ] Validasi minimal satu item diterima dan qty > 0.
-        - [ ] Update status PO (Partial/Complete) secara otomatis.
-        - [ ] Posting stok masuk ke gudang tujuan dan log aktivitas.
+- [x] **Penerimaan Barang:**
+    - [x] **Validasi PO & Header**
+        - [x] Pilih PO yang sudah disetujui (statusnya sudah approved) sebagai sumber penerimaan.
+        - [x] Auto-fill supplier, gudang tujuan, dan jadwal kirim dari PO.
+        - [x] Izinkan override alamat kirim dengan log perubahan.
+    - [x] **Pemeriksaan Kedatangan**
+        - [x] Checklist kendaraan, nomor SJ pemasok, dan suhu kedatangan.
+        - [x] Catat waktu tiba dan petugas pemeriksa.
+        - [x] Upload foto dokumen pendukung (max 5MB per file, multi-upload).
+    - [x] **Detail Item Diterima**
+        - [x] Repeater item yang ditarik dari PO dengan qty pesan vs qty terima.
+        - [x] Field toleransi susut, catatan QC, dan alasan selisih.
+        - [x] Aksi split baris untuk pecah batch atau satuan.
+    - [x] **Penanganan Selisih & Retur**
+        - [x] Tandai item rusak/kurang untuk dibuatkan retur otomatis.
+        - [x] Mapping COA biaya klaim atau diskon kredit.
+        - [x] Notifikasi ke tim purchasing melalui Filament notification.
+    - [x] **Biaya & Dokumen Pendukung**
+        - [x] Input biaya bongkar, sewa alat, atau inspeksi dengan COA.
+        - [x] Lampirkan dokumen hasil timbang dan foto kondisi barang.
+        - [x] Simpan riwayat versi dokumen ketika diedit ulang.
+    - [x] **Penyelesaian & Posting**
+        - [x] Validasi minimal satu item diterima dan qty > 0.
+        - [x] Update status PO (Partial/Complete) secara otomatis.
+        - [x] Posting stok masuk ke gudang tujuan dan log aktivitas.
 - [x] **Stock In:** Form pencatatan masuk barang ke gudang.
 - [ ] **Faktur Pembelian:**
     - [ ] **Header Form**
