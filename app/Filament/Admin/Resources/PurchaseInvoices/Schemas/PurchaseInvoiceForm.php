@@ -754,7 +754,7 @@ JS))
                         ]),
                     'purchaseOrder' => fn ($query) => $query->select('id', 'metadata'),
                 ])
-                ->find($goodsReceiptId, ['id', 'receipt_number', 'supplier_id', 'destination_warehouse_id']);
+                ->find($goodsReceiptId, ['id', 'receipt_number', 'supplier_id', 'destination_warehouse_id', 'live_chicken_purchase_order_id']);
 
             self::$goodsReceiptCache[$goodsReceiptId] = $receipt
                 ? [
