@@ -3,8 +3,12 @@
         if (! window.__poLineItemListenerRegistered) {
             window.__poLineItemListenerRegistered = true
 
+            console.debug('[PO] Line item modal listener registered')
+
             const handler = (event) => {
                 const detail = event.detail ?? {}
+
+                console.debug('[PO] Modal request received', detail)
 
                 const livewireId = detail.livewireId ?? event.target?.__livewire?.id
 
@@ -32,6 +36,12 @@
                 const action = detail.action ?? 'edit_line_item'
                 const args = detail.arguments ?? {}
                 const context = detail.context ?? {}
+
+                console.debug('[PO] Triggering mountAction for modal', {
+                    action,
+                    args,
+                    context,
+                })
 
                 component.mountAction(action, args, context)
             }
