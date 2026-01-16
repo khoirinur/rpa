@@ -31,6 +31,10 @@ Digunakan sebagai standar untuk modul **Pembelian Ayam Hidup** dan modul lanjuta
 Setiap komponen sensitif (Kolom Harga Beli, Tombol Delete, Menu Laporan Laba Rugi) WAJIB menggunakan syntax visibility Laravel Shield/Spatie secara eksplisit.
 Contoh: `->visible(fn () => auth()->user()->can('view_buying_price'))`
 
+**[IMPORTANT] Permission Seeder per Modul:**
+- Setiap modul baru WAJIB punya `PermissionSeeder` yang mengikuti pola `BasePermissionSeeder` (aksi ViewAny, View, Create, Update, Delete, Restore, RestoreAny, ForceDelete, ForceDeleteAny, Replicate, Reorder) dan menempelkan izin ke minimal role `owner` dan `admin_gudang`.
+- Daftarkan seeder tersebut di `DatabaseSeeder` agar otomatis dijalankan.
+
 **[IMPORTANT] Pastikan semua resource menggunakan trait `LogsActivity` untuk audit trail.**
 
 ### 4. Known Mistakes / Do Not Repeat (Catatan Evaluasi)

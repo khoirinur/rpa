@@ -32,6 +32,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Closure;
 use function normalize_item_name;
 use function sanitize_decimal;
 use function sanitize_positive_decimal;
@@ -61,6 +62,7 @@ class PurchaseInvoiceForm
                     ->options(PurchaseInvoice::referenceTypeOptions())
                     ->default(PurchaseInvoice::REFERENCE_TYPE_PURCHASE_ORDER)
                     ->native(false)
+                    ->disabled(fn (Component $component): bool => $component->getContainer()->getOperation() === 'edit')
                     ->live()
                     ->afterStateUpdated(function (?string $state, SchemaSet $set): void {
                         if ($state === PurchaseInvoice::REFERENCE_TYPE_PURCHASE_ORDER) {
@@ -73,11 +75,27 @@ class PurchaseInvoiceForm
                     }),
                 Select::make('live_chicken_purchase_order_id')
                     ->label('Purchase Order')
-                    ->relationship('purchaseOrder', 'po_number', modifyQueryUsing: fn (Builder $query): Builder => $query->latest('order_date'))
+                    ->relationship('purchaseOrder', 'po_number', modifyQueryUsing: function (Builder $query, SchemaGet $get): Builder {
+                        $current = $get('live_chicken_purchase_order_id');
+                        $usedIds = PurchaseInvoice::query()
+                            ->whereNotNull('live_chicken_purchase_order_id')
+                            ->pluck('live_chicken_purchase_order_id');
+
+                        return $query
+                            ->latest('order_date')
+                            ->where(function (Builder $inner) use ($usedIds, $current): void {
+                                $inner->whereNotIn('id', $usedIds);
+
+                                if ($current) {
+                                    $inner->orWhere('id', $current);
+                                }
+                            });
+                    })
                     ->visible(fn (SchemaGet $get): bool => $get('reference_type') === PurchaseInvoice::REFERENCE_TYPE_PURCHASE_ORDER)
                     ->preload(15)
                     ->searchable()
                     ->native(false)
+                    ->disabled(fn (Component $component): bool => $component->getContainer()->getOperation() === 'edit')
                     ->live()
                     ->afterStateUpdated(function (?int $state, SchemaSet $set, SchemaGet $get): void {
                         if (! $state) {
@@ -92,11 +110,27 @@ class PurchaseInvoiceForm
                     }),
                 Select::make('goods_receipt_id')
                     ->label('Goods Receipt')
-                    ->relationship('goodsReceipt', 'receipt_number', modifyQueryUsing: fn (Builder $query): Builder => $query->latest('received_at'))
+                    ->relationship('goodsReceipt', 'receipt_number', modifyQueryUsing: function (Builder $query, SchemaGet $get): Builder {
+                        $current = $get('goods_receipt_id');
+                        $usedIds = PurchaseInvoice::query()
+                            ->whereNotNull('goods_receipt_id')
+                            ->pluck('goods_receipt_id');
+
+                        return $query
+                            ->latest('received_at')
+                            ->where(function (Builder $inner) use ($usedIds, $current): void {
+                                $inner->whereNotIn('id', $usedIds);
+
+                                if ($current) {
+                                    $inner->orWhere('id', $current);
+                                }
+                            });
+                    })
                     ->visible(fn (SchemaGet $get): bool => $get('reference_type') === PurchaseInvoice::REFERENCE_TYPE_GOODS_RECEIPT)
                     ->preload(15)
                     ->searchable()
                     ->native(false)
+                    ->disabled(fn (Component $component): bool => $component->getContainer()->getOperation() === 'edit')
                     ->live()
                     ->afterStateUpdated(function (?int $state, SchemaSet $set, SchemaGet $get): void {
                         if (! $state) {
@@ -116,6 +150,7 @@ class PurchaseInvoiceForm
                     ->searchable()
                     ->preload(15)
                     ->native(false)
+                    ->disabled(fn (Component $component): bool => $component->getContainer()->getOperation() === 'edit')
                     ->live()
                     ->afterStateUpdated(function (?int $state, SchemaSet $set, SchemaGet $get): void {
                         if (! $state) {
@@ -214,27 +249,46 @@ class PurchaseInvoiceForm
                             ->columnSpan(3),
                         TextInput::make('quantity')
                             ->label('Kuantitas')
-                            ->numeric()
-                            ->minValue(0)
-                            ->default(0)
-                            ->live(onBlur: true)
-                            ->mask(RawJs::make(<<<'JS'
-$decimal($input, 3, ',', '.')
-JS))
-                            ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get, TextInput $component): void {
-                                self::refreshLineItemPercentageDiscount($component);
+                            ->inlineLabel()
+                            ->type('text')
+                            ->required()
+                            ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
+                                if (sanitize_decimal($value) < 0.01) {
+                                    $fail('Kuantitas minimal 0,01.');
+                                }
                             })
-                            ->dehydrateStateUsing(fn ($state): float => sanitize_positive_decimal($state ?? 0))
-                            ->columnSpan(3),
-                        TextInput::make('unit_price')
-                            ->label('Harga Satuan')
-                            ->prefix('Rp')
                             ->mask(RawJs::make(<<<'JS'
 $money($input, ',', '.', 0)
-JS))
+JS
+                            ))
                             ->stripCharacters(['.', ','])
-                            ->dehydrateStateUsing(fn ($state): float => sanitize_rupiah($state ?? 0))
-                            ->default(0)
+                            ->live()
+                            ->columnSpanFull(),
+                        TextInput::make('unit_price')
+                            ->label('@Harga')
+                            ->type('text')
+                            ->required()
+                            ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
+                                if (sanitize_decimal($value) < 0) {
+                                    $fail('Harga tidak boleh negatif.');
+                                }
+                            })
+                            ->prefix('Rp')
+                            ->formatStateUsing(fn ($state): ?string => $state === null
+                                ? null
+                                : number_format((float) $state, 0, ',', '.'))
+                            ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS
+                            ))
+                            ->stripCharacters(['.', ','])
+                            ->dehydrateStateUsing(function ($state) {
+                                if (is_numeric($state)) {
+                                    return (float) $state;
+                                }
+
+                                return sanitize_rupiah($state ?? 0);
+                            })
                             ->live(onBlur: true)
                             ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get, TextInput $component): void {
                                 self::refreshLineItemPercentageDiscount($component);
@@ -255,6 +309,9 @@ JS))
                         TextInput::make('discount_value')
                             ->label('Nilai Diskon')
                             ->prefix('Rp')
+                            ->formatStateUsing(fn ($state): ?string => $state === null
+                                ? null
+                                : number_format((float) sanitize_decimal($state ?? 0), 0, ',', '.'))
                             ->mask(RawJs::make(<<<'JS'
 $money($input, ',', '.', 0)
 JS))
@@ -272,8 +329,12 @@ JS))
                         Select::make('tax_rate')
                             ->label('Tarif Pajak')
                             ->options(PurchaseInvoice::taxRateOptions())
-                            ->default('11.00')
+                            ->default('11')
                             ->native(false)
+                            ->formatStateUsing(fn ($state): ?string => $state === null ? null : (string) (float) $state)
+                            ->afterStateHydrated(function ($state, callable $set): void {
+                                $set('tax_rate', $state === null ? null : (string) (float) $state);
+                            })
                             ->columnSpan(2),
                         Select::make('warehouse_id')
                             ->label('Gudang Item')
@@ -488,8 +549,12 @@ JS))
                 Select::make('tax_rate')
                     ->label('Tarif Pajak Default')
                     ->options(PurchaseInvoice::taxRateOptions())
-                    ->default('11.00')
+                    ->default('11')
                     ->native(false)
+                    ->formatStateUsing(fn ($state): ?string => $state === null ? null : (string) (float) $state)
+                    ->afterStateHydrated(function ($state, callable $set): void {
+                        $set('tax_rate', $state === null ? null : (string) (float) $state);
+                    })
                     ->live()
                     ->afterStateUpdated(function (SchemaSet $set, SchemaGet $get): void {
                         self::syncInvoiceTotals($set, $get);
@@ -561,12 +626,15 @@ JS))
                             ->relationship('account', 'name', modifyQueryUsing: fn (Builder $query): Builder => $query->where('type', 'kas_bank')->orderBy('code'))
                             ->getOptionLabelFromRecordUsing(fn (ChartOfAccount $record): string => sprintf('%s — %s', $record->code, $record->name))
                             ->searchable()
+                            ->default(132) // BCA Surya Kencana
                             ->preload(15)
                             ->native(false)
                             ->columnSpan(3),
-                        TextInput::make('payment_method')
+                        Select::make('payment_method')
                             ->label('Metode')
-                            ->maxLength(40)
+                            ->options(PurchaseInvoicePayment::methodOptions())
+                            ->default(PurchaseInvoicePayment::METHOD_CASH)
+                            ->native(false)
                             ->columnSpan(3),
                         TextInput::make('reference_number')
                             ->label('Referensi')
@@ -669,7 +737,6 @@ JS))
                         Tab::make('Detail Faktur')
                             ->schema([
                                 $itemsSection,
-                                $summarySection,
                             ]),
                         Tab::make('Pembayaran & Pajak')
                             ->schema([
@@ -684,8 +751,10 @@ JS))
                                 $costSection,
                             ]),
                     ])
-                            ->columnSpanFull(),
-                        self::makeLineItemDiscountPercentageAction(),
+                    ->columnSpanFull(),
+                self::makeLineItemDiscountPercentageAction(),
+                $summarySection,
+
             ]);
     }
 

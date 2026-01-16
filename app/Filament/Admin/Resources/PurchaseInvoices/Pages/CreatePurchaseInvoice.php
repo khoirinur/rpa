@@ -13,4 +13,11 @@ class CreatePurchaseInvoice extends CreateRecord
     {
         return 'Tambah Faktur Pembelian';
     }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['metadata'] = PurchaseInvoiceResource::buildMetadata($data);
+
+        return $data;
+    }
 }

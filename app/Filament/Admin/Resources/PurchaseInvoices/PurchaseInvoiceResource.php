@@ -15,6 +15,10 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Collection;
+use function normalize_item_name;
+use function sanitize_decimal;
+use function sanitize_positive_decimal;
 
 class PurchaseInvoiceResource extends Resource
 {
@@ -75,5 +79,38 @@ class PurchaseInvoiceResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    public static function buildMetadata(array $data): array
+    {
+        $lineItems = Collection::make($data['items'] ?? [])
+            ->map(function (array $item) use ($data): array {
+                $unit = strtolower((string) ($item['unit'] ?? 'kg'));
+
+                return [
+                    'product_id' => $item['product_id'] ?? null,
+                    'item_code' => $item['item_code'] ?? null,
+                    'item_name' => normalize_item_name($item['item_name'] ?? null),
+                    'unit' => $unit,
+                    'quantity' => sanitize_positive_decimal($item['quantity'] ?? 0, 3),
+                    'unit_price' => sanitize_decimal($item['unit_price'] ?? 0),
+                    'discount_type' => $item['discount_type'] ?? PurchaseInvoice::DISCOUNT_TYPE_AMOUNT,
+                    'discount_value' => sanitize_decimal($item['discount_value'] ?? 0),
+                    'discount_percentage' => isset($item['discount_percentage'])
+                        ? sanitize_decimal($item['discount_percentage'], 4)
+                        : null,
+                    'apply_tax' => (bool) ($item['apply_tax'] ?? false),
+                    'tax_rate' => sanitize_decimal($item['tax_rate'] ?? ($data['tax_rate'] ?? 0), 2),
+                    'warehouse_id' => $item['warehouse_id'] ?? null,
+                    'notes' => $item['notes'] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            ...($data['metadata'] ?? []),
+            'line_items' => $lineItems,
+        ];
     }
 }

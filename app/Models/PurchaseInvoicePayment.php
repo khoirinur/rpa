@@ -18,6 +18,12 @@ class PurchaseInvoicePayment extends Model
     public const TYPE_INSTALLMENT = 'installment';
     public const TYPE_ADJUSTMENT = 'adjustment';
 
+    public const METHOD_CASH = 'cash';
+    public const METHOD_BANK_TRANSFER = 'bank_transfer';
+    public const METHOD_CHEQUE = 'cheque';
+    public const METHOD_CREDIT_CARD = 'credit_card';
+    public const METHOD_E_WALLET = 'e_wallet';
+
     protected $fillable = [
         'purchase_invoice_id',
         'account_id',
@@ -46,6 +52,17 @@ class PurchaseInvoicePayment extends Model
             self::TYPE_DOWN_PAYMENT => 'Uang Muka',
             self::TYPE_INSTALLMENT => 'Cicilan',
             self::TYPE_ADJUSTMENT => 'Penyesuaian',
+        ];
+    }
+
+    public static function methodOptions(): array
+    {
+        return [
+            self::METHOD_CASH => 'Tunai',
+            self::METHOD_BANK_TRANSFER => 'Transfer Bank',
+            self::METHOD_CHEQUE => 'Cek/Giro',
+            self::METHOD_CREDIT_CARD => 'Kartu Kredit',
+            self::METHOD_E_WALLET => 'Dompet Digital',
         ];
     }
 

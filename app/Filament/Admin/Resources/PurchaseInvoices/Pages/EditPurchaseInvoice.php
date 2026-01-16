@@ -25,4 +25,11 @@ class EditPurchaseInvoice extends EditRecord
     {
         return 'Ubah Faktur Pembelian';
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $data['metadata'] = PurchaseInvoiceResource::buildMetadata($data);
+
+        return $data;
+    }
 }

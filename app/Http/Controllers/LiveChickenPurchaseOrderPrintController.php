@@ -13,8 +13,8 @@ class LiveChickenPurchaseOrderPrintController extends Controller
     {
         $user = $request->user();
         $canView = $user && (
-            $user->can('view_live_chicken_purchase_order') ||
-            $user->can('view_any_live_chicken_purchase_order')
+            $user->can('View:LiveChickenPurchaseOrder') ||
+            $user->can('ViewAny:LiveChickenPurchaseOrder')
         );
 
         abort_unless($canView, 403);

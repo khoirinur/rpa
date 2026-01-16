@@ -200,10 +200,10 @@ class PurchaseInvoice extends Model
     public static function taxRateOptions(): array
     {
         return [
-            '0.00' => '0%',
-            '10.00' => '10%',
-            '11.00' => '11%',
-            '12.00' => '12%',
+            '0' => '0%',
+            '10' => '10%',
+            '11' => '11%',
+            '12' => '12%',
         ];
     }
 
