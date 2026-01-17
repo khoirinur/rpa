@@ -24,5 +24,7 @@ class AppServiceProvider extends ServiceProvider
         FilamentColor::register([
             'primary' => Color::Rose,
         ]);
+
+        \App\Models\PurchaseInvoicePayment::observe(\App\Models\PurchaseInvoicePaymentObserver::class);
     }
 }

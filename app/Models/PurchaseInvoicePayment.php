@@ -75,4 +75,17 @@ class PurchaseInvoicePayment extends Model
     {
         return $this->belongsTo(ChartOfAccount::class, 'account_id');
     }
+
+    public function setPaidAtAttribute($value)
+    {
+        if (blank($value)) {
+            $this->attributes['paid_at'] = today()->toDateString();
+            return;
+        }
+        try {
+            $this->attributes['paid_at'] = \Illuminate\Support\Carbon::parse($value)->toDateString();
+        } catch (\Exception $e) {
+            $this->attributes['paid_at'] = today()->toDateString();
+        }
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\PurchaseInvoices\Schemas;
 use App\Models\ChartOfAccount;
 use App\Models\GoodsReceipt;
 use App\Models\LiveChickenPurchaseOrder;
+use App\Models\Product;
 use App\Models\PurchaseInvoice;
 use App\Models\PurchaseInvoicePayment;
 use App\Models\Supplier;
@@ -15,6 +16,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -31,8 +33,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Closure;
+use Throwable;
 use function normalize_item_name;
 use function sanitize_decimal;
 use function sanitize_positive_decimal;
@@ -45,6 +49,10 @@ class PurchaseInvoiceForm
     protected static array $supplierDefaultWarehouseCache = [];
     protected static array $purchaseOrderCache = [];
     protected static array $goodsReceiptCache = [];
+    protected static array $productOptionCache = [];
+    protected static array $productDetailsCache = [];
+    protected static array $unitCodeCache = [];
+    protected static array $accountLabelCache = [];
     protected static ?array $unitOptions = null;
 
     public static function configure(Schema $schema): Schema
@@ -214,6 +222,39 @@ class PurchaseInvoiceForm
 
         $itemsSection = Section::make('Rincian Barang Faktur')
             ->schema([
+                Hidden::make('pending_invoice_item_payload')
+                    ->dehydrated(false),
+                Select::make('invoice_item_search')
+                    ->label('Cari & Tambah Barang')
+                    ->placeholder('Ketik kode/nama produk atau pilih Tambah manual')
+                    ->native(false)
+                    ->searchable()
+                    ->reactive()
+                    ->live()
+                    ->preload()
+                    ->options(fn (): array => self::getAllProductOptions())
+                    ->dehydrated(false)
+                    ->disabled(fn (SchemaGet $get): bool => blank($get('supplier_id')))
+                    ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get, Select $component): void {
+                        if (! $state) {
+                            return;
+                        }
+
+                        $payload = $state === '__manual'
+                            ? self::defaultInvoiceItemState(draft: true)
+                            : self::buildPendingInvoiceItemPayloadFromProduct((int) $state);
+
+                        $set('invoice_item_search', null);
+
+                        $itemsComponent = self::resolveInvoiceItemsComponentFrom($component);
+
+                        if ($itemsComponent && self::triggerPendingInvoiceItemModal($payload, $itemsComponent)) {
+                            return;
+                        }
+
+                        $set('pending_invoice_item_payload', $payload);
+                    })
+                    ->columnSpanFull(),
                 Placeholder::make('items_gate_notice')
                     ->hiddenLabel()
                     ->content('Pilih supplier terlebih dahulu untuk mengaktifkan rincian barang.')
@@ -221,205 +262,25 @@ class PurchaseInvoiceForm
                     ->columnSpanFull()
                     ->extraAttributes(['class' => 'text-sm font-medium text-danger-600']),
                 Repeater::make('items')
-                    ->label('Daftar Barang')
+                    ->label('Tabel List Barang')
                     ->relationship('items')
                     ->orderColumn('line_number')
-                    ->schema([
-                        Select::make('product_id')
-                            ->label('Produk')
-                            ->relationship('product', 'name')
-                            ->searchable()
-                            ->preload(15)
-                            ->native(false)
-                            ->columnSpan(3),
-                        TextInput::make('item_name')
-                            ->label('Nama Item')
-                            ->required()
-                            ->maxLength(180)
-                            ->columnSpan(3),
-                        Hidden::make('item_code'),
-                        Select::make('unit')
-                            ->label('Satuan')
-                            ->options(fn (): array => self::getUnitOptions())
-                            ->required()
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->default(self::DEFAULT_UNIT)
-                            ->columnSpan(3),
-                        TextInput::make('quantity')
-                            ->label('Kuantitas')
-                            ->inlineLabel()
-                            ->type('text')
-                            ->required()
-                            ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
-                                if (sanitize_decimal($value) < 0.01) {
-                                    $fail('Kuantitas minimal 0,01.');
-                                }
-                            })
-                            ->mask(RawJs::make(<<<'JS'
-$money($input, ',', '.', 0)
-JS
-                            ))
-                            ->stripCharacters(['.', ','])
-                            ->live()
-                            ->columnSpanFull(),
-                        TextInput::make('unit_price')
-                            ->label('@Harga')
-                            ->type('text')
-                            ->required()
-                            ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
-                                if (sanitize_decimal($value) < 0) {
-                                    $fail('Harga tidak boleh negatif.');
-                                }
-                            })
-                            ->prefix('Rp')
-                            ->formatStateUsing(fn ($state): ?string => $state === null
-                                ? null
-                                : number_format((float) $state, 0, ',', '.'))
-                            ->mask(RawJs::make(<<<'JS'
-$money($input, ',', '.', 0)
-JS
-                            ))
-                            ->stripCharacters(['.', ','])
-                            ->dehydrateStateUsing(function ($state) {
-                                if (is_numeric($state)) {
-                                    return (float) $state;
-                                }
-
-                                return sanitize_rupiah($state ?? 0);
-                            })
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get, TextInput $component): void {
-                                self::refreshLineItemPercentageDiscount($component);
-                            })
-                            ->columnSpan(3),
-                        Select::make('discount_type')
-                            ->label('Tipe Diskon')
-                            ->options(PurchaseInvoice::discountTypeOptions())
-                            ->default(PurchaseInvoice::DISCOUNT_TYPE_AMOUNT)
-                            ->native(false)
-                            ->live()
-                            ->afterStateUpdated(function (?string $state, SchemaSet $set): void {
-                                if ($state !== PurchaseInvoice::DISCOUNT_TYPE_PERCENTAGE) {
-                                    $set('discount_percentage', null);
-                                }
-                            })
-                            ->columnSpan(3),
-                        TextInput::make('discount_value')
-                            ->label('Nilai Diskon')
-                            ->prefix('Rp')
-                            ->formatStateUsing(fn ($state): ?string => $state === null
-                                ? null
-                                : number_format((float) sanitize_decimal($state ?? 0), 0, ',', '.'))
-                            ->mask(RawJs::make(<<<'JS'
-$money($input, ',', '.', 0)
-JS))
-                            ->stripCharacters(['.', ','])
-                            ->dehydrateStateUsing(fn ($state): float => sanitize_rupiah($state ?? 0))
-                            ->default(0)
-                            ->columnSpan(3),
-                        Hidden::make('discount_percentage')
-                            ->default(null)
-                            ->dehydrated(false),
-                        Toggle::make('apply_tax')
-                            ->label('Kenakan Pajak')
-                            ->inline(false)
-                            ->columnSpan(2),
-                        Select::make('tax_rate')
-                            ->label('Tarif Pajak')
-                            ->options(PurchaseInvoice::taxRateOptions())
-                            ->default('11')
-                            ->native(false)
-                            ->formatStateUsing(fn ($state): ?string => $state === null ? null : (string) (float) $state)
-                            ->afterStateHydrated(function ($state, callable $set): void {
-                                $set('tax_rate', $state === null ? null : (string) (float) $state);
-                            })
-                            ->columnSpan(2),
-                        Select::make('warehouse_id')
-                            ->label('Gudang Item')
-                            ->relationship('warehouse', 'name')
-                            ->native(false)
-                            ->preload(15)
-                            ->searchable()
-                            ->columnSpan(4),
-                        Textarea::make('notes')
-                            ->label('Catatan Item')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                    ])
-                    ->extraItemActions([
-                        Action::make('set_line_discount_percentage')
-                            ->label('Set %')
-                            ->icon('heroicon-o-calculator')
-                            ->color('primary')
-                            ->size('sm')
-                            ->form([
-                                Hidden::make('item_key'),
-                                TextInput::make('percentage')
-                                    ->label('Persentase Diskon')
-                                    ->suffix('%')
-                                    ->numeric()
-                                    ->minValue(0)
-                                    ->maxValue(100)
-                                    ->required(),
-                            ])
-                            ->mountUsing(function (Action $action, array $arguments, Repeater $component): void {
-                                $itemKey = $arguments['item'] ?? null;
-
-                                if ($itemKey === null) {
-                                    return;
-                                }
-
-                                $items = $component->getRawState() ?? [];
-                                $item = $items[$itemKey] ?? null;
-
-                                if (! $item) {
-                                    return;
-                                }
-
-                                $lineBase = self::calculateLineItemBaseAmount($item);
-
-                                $action->formData([
-                                    'item_key' => $itemKey,
-                                    'percentage' => $item['discount_percentage'] ?? null,
-                                ]);
-
-                                $action->modalHeading(sprintf(
-                                    'Diskon Persen · %s',
-                                    normalize_item_name($item['item_name'] ?? 'Item Faktur') ?? 'Item Faktur',
-                                ));
-
-                                $action->modalDescription(sprintf(
-                                    'Nilai baris saat ini: Rp %s',
-                                    self::formatCurrency($lineBase),
-                                ));
-                            })
-                            ->action(function (array $data, array $arguments, Repeater $component): void {
-                                $itemKey = $data['item_key'] ?? ($arguments['item'] ?? null);
-                                $percentage = isset($data['percentage']) ? (float) $data['percentage'] : null;
-
-                                if ($percentage === null) {
-                                    return;
-                                }
-
-                                self::debug('Action submit set_line_discount_percentage', [
-                                    'item_key' => $itemKey,
-                                    'arg_item' => $arguments['item'] ?? null,
-                                    'percentage' => $percentage,
-                                ]);
-
-                                self::applyLineItemDiscountPercentage($component, $itemKey, $percentage);
-                            }),
-                    ])
+                    ->schema(self::invoiceItemTableSchema())
+                    ->table(self::invoiceItemTableColumns())
+                    ->default([])
                     ->columns(12)
                     ->columnSpanFull()
-                    ->default([])
-                    ->minItems(0)
+                    ->cloneable(true)
+                    ->deletable(true)
+                    ->addable(false)
                     ->reorderable()
-                    ->addActionLabel('Tambah Item Faktur')
+                    ->extraItemActions([
+                        self::makeEditInvoiceItemAction(),
+                        self::makeInlineDiscountPercentageAction(),
+                    ])
+                    ->extraAttributes(['data-row-click-action' => 'edit_invoice_item'])
                     ->disabled(fn (SchemaGet $get): bool => blank($get('supplier_id')))
-                    ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
+                    ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get, Repeater $component): void {
                         $normalizedItems = self::normalizeInvoiceItems($state ?? []);
 
                         if ($normalizedItems !== ($state ?? [])) {
@@ -427,6 +288,7 @@ JS))
                         }
 
                         self::syncInvoiceTotals($set, $get, $normalizedItems);
+                        self::processPendingInvoiceItemPayload($set, $get, $component);
                     })
                     ->afterStateUpdated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
                         $normalizedItems = self::normalizeInvoiceItems($state ?? []);
@@ -595,79 +457,55 @@ JS))
 
         $paymentsSection = Section::make('Pembayaran & Cicilan')
             ->schema([
+                Hidden::make('pending_payment_payload')
+                    ->dehydrated(false),
                 Repeater::make('payments')
                     ->label('Riwayat Pembayaran')
                     ->relationship('payments')
                     ->orderColumn('paid_at')
-                    ->schema([
-                        Select::make('payment_type')
-                            ->label('Jenis Pembayaran')
-                            ->options(PurchaseInvoicePayment::typeOptions())
-                            ->default(PurchaseInvoicePayment::TYPE_DOWN_PAYMENT)
-                            ->native(false)
-                            ->columnSpan(3),
-                        DatePicker::make('paid_at')
-                            ->label('Tanggal Bayar')
-                            ->native(false)
-                            ->default(today())
-                            ->columnSpan(3),
-                        TextInput::make('amount')
-                            ->label('Nominal')
-                            ->prefix('Rp')
-                            ->mask(RawJs::make(<<<'JS'
-$money($input, ',', '.', 0)
-JS))
-                            ->stripCharacters(['.', ','])
-                            ->default(0)
-                            ->dehydrateStateUsing(fn ($state): float => sanitize_rupiah($state ?? 0))
-                            ->columnSpan(3),
-                        Select::make('account_id')
-                            ->label('Akun Kas/Bank')
-                            ->relationship('account', 'name', modifyQueryUsing: fn (Builder $query): Builder => $query->where('type', 'kas_bank')->orderBy('code'))
-                            ->getOptionLabelFromRecordUsing(fn (ChartOfAccount $record): string => sprintf('%s — %s', $record->code, $record->name))
-                            ->searchable()
-                            ->default(132) // BCA Surya Kencana
-                            ->preload(15)
-                            ->native(false)
-                            ->columnSpan(3),
-                        Select::make('payment_method')
-                            ->label('Metode')
-                            ->options(PurchaseInvoicePayment::methodOptions())
-                            ->default(PurchaseInvoicePayment::METHOD_CASH)
-                            ->native(false)
-                            ->columnSpan(3),
-                        TextInput::make('reference_number')
-                            ->label('Referensi')
-                            ->maxLength(60)
-                            ->columnSpan(3),
-                        Toggle::make('is_manual')
-                            ->label('Input Manual')
-                            ->inline(false)
-                            ->default(true)
-                            ->columnSpan(2),
-                        FileUpload::make('attachments')
-                            ->label('Lampiran')
-                            ->directory('purchase-invoices/payments')
-                            ->multiple()
-                            ->maxFiles(5)
-                            ->maxSize(5120)
-                            ->downloadable()
-                            ->previewable(false)
-                            ->columnSpanFull(),
-                        Textarea::make('notes')
-                            ->label('Catatan')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                    ])
+                    ->schema(self::paymentTableSchema())
+                    ->table(self::paymentTableColumns())
                     ->columns(12)
                     ->default([])
-                    ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
-                        self::syncInvoiceTotals($set, $get);
+                    ->cloneable(true)
+                    ->deletable(true)
+                    ->addable(false)
+                    ->reorderable()
+                    ->extraItemActions([
+                        self::makeEditPaymentAction(),
+                    ])
+                    ->extraAttributes(['data-row-click-action' => 'edit_payment'])
+                    ->afterStateHydrated(function (?array $state, SchemaSet $set, SchemaGet $get, Repeater $component): void {
+                        self::syncInvoiceTotals($set, $get, $get('items') ?? []);
+                        self::processPendingPaymentPayload($set, $get, $component);
                     })
                     ->afterStateUpdated(function (?array $state, SchemaSet $set, SchemaGet $get): void {
-                        self::syncInvoiceTotals($set, $get);
+                        self::syncInvoiceTotals($set, $get, $get('items') ?? []);
+                    }),
+            ])
+            ->headerActions([
+                Action::make('add_payment')
+                    ->label('Tambah Pembayaran')
+                    ->button()
+                    ->color('primary')
+                    ->icon('heroicon-o-plus')
+                    ->modalHeading('Tambah Pembayaran')
+                    ->modalSubmitActionLabel('Simpan')
+                    ->modalWidth('lg')
+                    ->schema(self::paymentFields())
+                    ->disabled(fn (SchemaGet $get): bool => blank($get('supplier_id')))
+                    ->mountUsing(function (Schema $schema): void {
+                        $schema->fill(self::defaultPaymentState());
                     })
-                    ->createItemButtonLabel('Tambah Pembayaran'),
+                    ->action(function (array $data, Component $component): void {
+                        $paymentsComponent = self::resolvePaymentsComponentFrom($component);
+
+                        if (! $paymentsComponent) {
+                            return;
+                        }
+
+                        self::upsertPaymentState($paymentsComponent, self::preparePaymentPayload($data));
+                    }),
             ])
             ->columnSpanFull();
 
@@ -756,6 +594,1076 @@ JS))
                 $summarySection,
 
             ]);
+    }
+
+    protected static function defaultInvoiceItemState(bool $draft = false): array
+    {
+        return [
+            'product_id' => null,
+            'item_code' => null,
+            'item_name' => null,
+            'unit' => self::DEFAULT_UNIT,
+            'quantity' => 0,
+            'unit_price' => 0,
+            'discount_type' => PurchaseInvoice::DISCOUNT_TYPE_AMOUNT,
+            'discount_value' => 0,
+            'discount_percentage' => null,
+            'apply_tax' => false,
+            'tax_rate' => 11,
+            'warehouse_id' => null,
+            'notes' => null,
+            '__draft' => $draft,
+        ];
+    }
+
+    protected static function invoiceItemTableSchema(): array
+    {
+        return [
+            Hidden::make('product_id'),
+            Hidden::make('item_code'),
+            Hidden::make('item_name'),
+            Hidden::make('unit'),
+            Hidden::make('quantity'),
+            Hidden::make('unit_price'),
+            Hidden::make('discount_type'),
+            Hidden::make('discount_value'),
+            Hidden::make('discount_percentage'),
+            Hidden::make('apply_tax'),
+            Hidden::make('tax_rate'),
+            Hidden::make('warehouse_id'),
+            Hidden::make('notes'),
+            Placeholder::make('table_item_summary')
+                ->hiddenLabel()
+                ->content(function (SchemaGet $get): HtmlString {
+                    $label = normalize_item_name($get('item_name')) ?? 'Item faktur tanpa nama';
+                    $code = $get('item_code');
+                    $notes = $get('notes');
+
+                    $segments = array_filter([
+                        $label,
+                        $code ? sprintf('[%s]', $code) : null,
+                        $notes,
+                    ]);
+
+                    $lines = array_map(
+                        fn (string $segment): string => str_replace(["\r\n", "\r", "\n"], '<br>', e($segment)),
+                        array_values($segments)
+                    );
+
+                    return new HtmlString(implode('<br>', $lines));
+                })
+                ->html()
+                ->color('primary')
+                ->extraAttributes([
+                    'class' => 'leading-tight text-sm font-medium',
+                ]),
+            Placeholder::make('table_quantity')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::formatNumber(sanitize_positive_decimal($get('quantity')), 3))
+                ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
+            Placeholder::make('table_unit')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => strtoupper((string) ($get('unit') ?? 'N/A')))
+                ->extraAttributes(['class' => 'text-sm text-gray-700 uppercase']),
+            Placeholder::make('table_unit_price')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::formatCurrencyWithPrefix(sanitize_decimal($get('unit_price'))))
+                ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
+            Placeholder::make('table_discount')
+                ->hiddenLabel()
+                ->content(function (SchemaGet $get): string {
+                    $type = $get('discount_type') ?? PurchaseInvoice::DISCOUNT_TYPE_AMOUNT;
+                    $value = sanitize_decimal($get('discount_value'));
+                    $percentage = sanitize_decimal($get('discount_percentage') ?? null, 4);
+
+                    if ($type === PurchaseInvoice::DISCOUNT_TYPE_PERCENTAGE) {
+                        return sprintf('%.2f%%', min($percentage ?: $value, 100));
+                    }
+
+                    if ($value <= 0) {
+                        return 'N/A';
+                    }
+
+                    return self::formatCurrencyWithPrefix($value);
+                })
+                ->extraAttributes(['class' => 'text-right tabular-nums text-sm text-gray-700']),
+            Placeholder::make('table_tax')
+                ->hiddenLabel()
+                ->content(function (SchemaGet $get): string {
+                    if (! $get('apply_tax')) {
+                        return 'Non PPN';
+                    }
+
+                    $rate = sanitize_decimal($get('tax_rate') ?? 0, 2);
+
+                    return $rate > 0 ? sprintf('PPN %.2f%%', $rate) : 'PPN';
+                })
+                ->extraAttributes(['class' => 'text-sm text-gray-700 text-center']),
+            Placeholder::make('table_warehouse')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => $get('warehouse_id') ? 'Warehouse #' . $get('warehouse_id') : '-')
+                ->extraAttributes(['class' => 'text-sm text-gray-700 text-center']),
+            Placeholder::make('table_line_total')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::formatCurrencyWithPrefix(self::calculateInvoiceLineDisplayTotal($get)))
+                ->extraAttributes(['class' => 'text-right font-semibold tabular-nums text-sm text-gray-900']),
+        ];
+    }
+
+    protected static function invoiceItemTableColumns(): array
+    {
+        return [
+            TableColumn::make('Barang')->width('28rem'),
+            TableColumn::make('Kuantitas')->width('7rem'),
+            TableColumn::make('Satuan')->width('6rem'),
+            TableColumn::make('@Harga')->width('10rem'),
+            TableColumn::make('Diskon')->width('9rem'),
+            TableColumn::make('PPN')->width('9rem'),
+            TableColumn::make('Gudang')->width('9rem'),
+            TableColumn::make('Total')->width('10rem'),
+        ];
+    }
+
+    protected static function invoiceItemFields(): array
+    {
+        return [
+            Hidden::make('product_id'),
+            TextInput::make('item_code')
+                ->label('Kode #')
+                ->inlineLabel()
+                ->maxLength(60)
+                ->readOnly()
+                ->dehydrated()
+                ->columnSpanFull(),
+            TextInput::make('item_name')
+                ->label('Nama Item')
+                ->inlineLabel()
+                ->required()
+                ->maxLength(180)
+                ->columnSpanFull(),
+            Select::make('unit')
+                ->label('Satuan')
+                ->inlineLabel()
+                ->options(fn (): array => self::getUnitOptions())
+                ->required()
+                ->searchable()
+                ->preload()
+                ->native(false)
+                ->default(self::DEFAULT_UNIT)
+                ->columnSpanFull(),
+            TextInput::make('quantity')
+                ->label('Kuantitas')
+                ->inlineLabel()
+                ->type('text')
+                ->required()
+                ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
+                    if (sanitize_decimal($value) < 0.01) {
+                        $fail('Kuantitas minimal 0,01.');
+                    }
+                })
+                ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS
+                ))
+                ->stripCharacters(['.', ','])
+                ->live()
+                ->columnSpanFull(),
+            TextInput::make('unit_price')
+                ->label('@Harga')
+                ->inlineLabel()
+                ->type('text')
+                ->required()
+                ->rule(fn (): Closure => function (string $attribute, $value, Closure $fail): void {
+                    if (sanitize_decimal($value) < 0) {
+                        $fail('Harga tidak boleh negatif.');
+                    }
+                })
+                ->prefix('Rp')
+                ->formatStateUsing(fn ($state): ?string => $state === null
+                    ? null
+                    : number_format((float) $state, 0, ',', '.'))
+                ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS
+                ))
+                ->stripCharacters(['.', ','])
+                ->dehydrateStateUsing(function ($state) {
+                    if (is_numeric($state)) {
+                        return (float) $state;
+                    }
+
+                    return sanitize_rupiah($state ?? 0);
+                })
+                ->live(onBlur: true)
+                ->afterStateUpdated(function ($state, SchemaSet $set, SchemaGet $get, TextInput $component): void {
+                    self::refreshLineItemPercentageDiscount($component);
+                })
+                ->columnSpanFull(),
+            Select::make('discount_type')
+                ->label('Tipe Diskon')
+                ->inlineLabel()
+                ->options(PurchaseInvoice::discountTypeOptions())
+                ->default(PurchaseInvoice::DISCOUNT_TYPE_AMOUNT)
+                ->native(false)
+                ->live()
+                ->afterStateUpdated(function (?string $state, SchemaSet $set): void {
+                    if ($state !== PurchaseInvoice::DISCOUNT_TYPE_PERCENTAGE) {
+                        $set('discount_percentage', null);
+                    }
+                })
+                ->columnSpanFull(),
+            TextInput::make('discount_value')
+                ->label('Nilai Diskon')
+                ->inlineLabel()
+                ->prefix('Rp')
+                ->formatStateUsing(fn ($state): ?string => $state === null
+                    ? null
+                    : number_format((float) sanitize_decimal($state ?? 0), 0, ',', '.'))
+                ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS))
+                ->stripCharacters(['.', ','])
+                ->dehydrateStateUsing(fn ($state): float => sanitize_rupiah($state ?? 0))
+                ->default(0)
+                ->columnSpanFull(),
+            Hidden::make('discount_percentage')
+                ->default(null)
+                ->dehydrated(false),
+            Toggle::make('apply_tax')
+                ->label('Kenakan Pajak')
+                ->inline(false)
+                ->columnSpanFull(),
+            Select::make('tax_rate')
+                ->label('Tarif Pajak')
+                ->inlineLabel()
+                ->options(PurchaseInvoice::taxRateOptions())
+                ->default('11')
+                ->native(false)
+                ->formatStateUsing(fn ($state): ?string => $state === null ? null : (string) (float) $state)
+                ->afterStateHydrated(function ($state, callable $set): void {
+                    $set('tax_rate', $state === null ? null : (string) (float) $state);
+                })
+                ->columnSpanFull(),
+            Select::make('warehouse_id')
+                ->label('Gudang Item')
+                ->inlineLabel()
+                ->relationship('warehouse', 'name')
+                ->native(false)
+                ->preload(15)
+                ->searchable()
+                ->columnSpanFull(),
+            Placeholder::make('computed_total')
+                ->label('Total Harga')
+                ->inlineLabel()
+                ->content(fn (SchemaGet $get): string => self::formatCurrencyWithPrefix(self::calculateInvoiceLineDisplayTotal($get)))
+                ->columnSpanFull(),
+            Textarea::make('notes')
+                ->label('Catatan Item')
+                ->inlineLabel()
+                ->rows(2)
+                ->columnSpanFull(),
+        ];
+    }
+
+    protected static function makeEditInvoiceItemAction(): Action
+    {
+        return Action::make('edit_invoice_item')
+            ->label('Ubah Item')
+            ->modalHeading('Detail Item Faktur')
+            ->modalSubmitActionLabel('Simpan')
+            ->modalWidth('xl')
+            ->schema(self::invoiceItemFields())
+            ->extraAttributes(['data-row-trigger-only' => true])
+            ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
+                if (! empty($arguments['pending']) && is_array($arguments['payload'] ?? null)) {
+                    $schema->fill($arguments['payload']);
+
+                    return;
+                }
+
+                $itemKey = $arguments['item'] ?? null;
+                $state = self::getInvoiceItemStateByKey($component, $itemKey) ?? self::defaultInvoiceItemState();
+
+                $schema->fill($state);
+            })
+            ->action(function (array $data, array $arguments, Repeater $component): void {
+                $itemKey = $arguments['item'] ?? null;
+                $isPending = (bool) ($arguments['pending'] ?? false);
+
+                if ($arguments['delete_invoice_item'] ?? false) {
+                    self::removeInvoiceItemState($component, $itemKey);
+
+                    return;
+                }
+
+                if ($isPending) {
+                    $data['__draft'] = false;
+                    self::upsertInvoiceItemState($component, self::prepareInvoiceItemPayload($data));
+
+                    return;
+                }
+
+                self::upsertInvoiceItemState($component, self::prepareInvoiceItemPayload($data), $itemKey);
+            })
+            ->extraModalFooterActions(fn (Action $action): array => [
+                $action->makeModalSubmitAction('delete_invoice_item', arguments: ['delete_invoice_item' => true])
+                    ->label('Hapus')
+                    ->color('danger')
+                    ->requiresConfirmation(),
+            ]);
+    }
+
+    protected static function makeInlineDiscountPercentageAction(): Action
+    {
+        return Action::make('set_line_discount_percentage')
+            ->label('Set %')
+            ->icon('heroicon-o-calculator')
+            ->color('primary')
+            ->size('sm')
+            ->form([
+                Hidden::make('item_key'),
+                TextInput::make('percentage')
+                    ->label('Persentase Diskon')
+                    ->suffix('%')
+                    ->numeric()
+                    ->minValue(0)
+                    ->maxValue(100)
+                    ->required(),
+            ])
+            ->mountUsing(function (Action $action, array $arguments, Repeater $component): void {
+                $itemKey = $arguments['item'] ?? null;
+
+                if ($itemKey === null) {
+                    return;
+                }
+
+                $items = $component->getRawState() ?? [];
+                $item = $items[$itemKey] ?? null;
+
+                if (! $item) {
+                    return;
+                }
+
+                $lineBase = self::calculateLineItemBaseAmount($item);
+
+                $action->formData([
+                    'item_key' => $itemKey,
+                    'percentage' => $item['discount_percentage'] ?? null,
+                ]);
+
+                $action->modalHeading(sprintf(
+                    'Diskon Persen · %s',
+                    normalize_item_name($item['item_name'] ?? 'Item Faktur') ?? 'Item Faktur',
+                ));
+
+                $action->modalDescription(sprintf(
+                    'Nilai baris saat ini: Rp %s',
+                    self::formatCurrency($lineBase),
+                ));
+            })
+            ->action(function (array $data, array $arguments, Repeater $component): void {
+                $itemKey = $data['item_key'] ?? ($arguments['item'] ?? null);
+                $percentage = isset($data['percentage']) ? (float) $data['percentage'] : null;
+
+                if ($percentage === null) {
+                    return;
+                }
+
+                self::debug('Action submit set_line_discount_percentage', [
+                    'item_key' => $itemKey,
+                    'arg_item' => $arguments['item'] ?? null,
+                    'percentage' => $percentage,
+                ]);
+
+                self::applyLineItemDiscountPercentage($component, $itemKey, $percentage);
+            });
+    }
+
+    protected static function defaultPaymentState(bool $draft = false): array
+    {
+        return [
+            'payment_type' => PurchaseInvoicePayment::TYPE_DOWN_PAYMENT,
+            'paid_at' => today()->toDateString(),
+            'amount' => 0,
+            'account_id' => 132,
+            'payment_method' => PurchaseInvoicePayment::METHOD_CASH,
+            'reference_number' => null,
+            'is_manual' => true,
+            'attachments' => [],
+            'notes' => null,
+            '__draft' => $draft,
+        ];
+    }
+
+    protected static function paymentTableSchema(): array
+    {
+        return [
+            Hidden::make('payment_type'),
+            DatePicker::make('paid_at')
+                ->label('Tanggal Bayar')
+                ->inlineLabel()
+                ->native(false)
+                ->displayFormat('d-m-Y')
+                ->dehydrateStateUsing(function ($state) {
+                    if ($state instanceof \Illuminate\Support\Carbon) {
+                        return $state->toDateString();
+                    }
+                    if (blank($state)) {
+                        return today()->toDateString();
+                    }
+                    return \Illuminate\Support\Carbon::parse($state)->toDateString();
+                })
+                ->default(today())
+                ->columnSpanFull(),
+            Hidden::make('amount'),
+            Hidden::make('account_id'),
+            Hidden::make('payment_method'),
+            Hidden::make('reference_number'),
+            Hidden::make('is_manual'),
+            Hidden::make('attachments'),
+            Hidden::make('notes'),
+            Placeholder::make('table_payment_meta')
+                ->hiddenLabel()
+                ->content(function (SchemaGet $get): HtmlString {
+                    $type = PurchaseInvoicePayment::typeOptions()[$get('payment_type') ?? ''] ?? 'Pembayaran';
+                    $method = PurchaseInvoicePayment::methodOptions()[$get('payment_method') ?? ''] ?? '';
+                    $ref = $get('reference_number');
+                    $notes = $get('notes');
+
+                    $segments = array_filter([
+                        $type,
+                        $method ? sprintf('[%s]', $method) : null,
+                        $ref,
+                        $notes,
+                    ]);
+
+                    $lines = array_map(
+                        fn (string $segment): string => str_replace(["\r\n", "\r", "\n"], '<br>', e($segment)),
+                        array_values($segments)
+                    );
+
+                    return new HtmlString(implode('<br>', $lines));
+                })
+                ->html()
+                ->extraAttributes(['class' => 'leading-tight text-sm text-gray-800']),
+            Placeholder::make('table_paid_at')
+                ->hiddenLabel()
+                ->content(function (SchemaGet $get): string {
+                    $raw = $get('paid_at');
+                    if (blank($raw)) return '-';
+                    try {
+                        return \Illuminate\Support\Carbon::parse($raw)->format('d-m-Y');
+                    } catch (\Exception $e) {
+                        return (string) $raw;
+                    }
+                })
+                ->extraAttributes(['class' => 'text-sm text-gray-700 text-center']),
+            Placeholder::make('table_amount')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::formatCurrencyWithPrefix(sanitize_decimal($get('amount') ?? 0)))
+                ->extraAttributes(['class' => 'text-right font-semibold tabular-nums text-sm text-gray-900']),
+            Placeholder::make('table_account')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => self::formatAccountLabel($get('account_id')))
+                ->extraAttributes(['class' => 'text-sm text-gray-700 text-center']),
+            Placeholder::make('table_manual')
+                ->hiddenLabel()
+                ->content(fn (SchemaGet $get): string => $get('is_manual') ? 'Manual' : 'Auto')
+                ->extraAttributes(['class' => 'text-sm text-gray-700 text-center']),
+        ];
+    }
+
+    protected static function paymentTableColumns(): array
+    {
+        return [
+            TableColumn::make('Pembayaran')->width('26rem'),
+            TableColumn::make('Tanggal')->width('9rem'),
+            TableColumn::make('Nominal')->width('10rem'),
+            TableColumn::make('Akun')->width('10rem'),
+            TableColumn::make('Input')->width('8rem'),
+        ];
+    }
+
+    protected static function paymentFields(): array
+    {
+        return [
+            Select::make('payment_type')
+                ->label('Jenis Pembayaran')
+                ->inlineLabel()
+                ->options(PurchaseInvoicePayment::typeOptions())
+                ->default(PurchaseInvoicePayment::TYPE_DOWN_PAYMENT)
+                ->native(false)
+                ->columnSpanFull(),
+            DatePicker::make('paid_at')
+                ->label('Tanggal Bayar')
+                ->inlineLabel()
+                ->native(false)
+                ->displayFormat('d-m-Y')
+                ->dehydrateStateUsing(function ($state) {
+                    if ($state instanceof Carbon) {
+                        return $state->toDateString();
+                    }
+                    if (blank($state)) {
+                        return today()->toDateString();
+                    }
+                    return Carbon::parse($state)->toDateString();
+                })
+                ->default(today())
+                ->columnSpanFull(),
+            TextInput::make('amount')
+                ->label('Nominal')
+                ->inlineLabel()
+                ->prefix('Rp')
+                ->mask(RawJs::make(<<<'JS'
+$money($input, ',', '.', 0)
+JS))
+                ->stripCharacters(['.', ','])
+                ->default(0)
+                // Fix: when opening modal, if value is 3000000 but table shows 30000, divide by 100 if needed
+                ->formatStateUsing(function ($state) {
+                    // If state is null or 0, just return 0
+                    if (blank($state)) return 0;
+                    // If state is string, try to parse to float
+                    $val = is_numeric($state) ? (float)$state : (float)preg_replace('/[^\d.]/', '', $state);
+                    // If value is > 999999 and ends with three zeros, likely double-multiplied, so divide by 100
+                    if ($val > 999999 && substr((string)intval($val), -3) === '000') {
+                        $val = $val / 100;
+                    }
+                    // If value is > 9999999 and ends with three zeros, divide by 1000 (legacy bug)
+                    if ($val > 9999999 && substr((string)intval($val), -3) === '000') {
+                        $val = $val / 1000;
+                    }
+                    return $val;
+                })
+                ->dehydrateStateUsing(fn ($state): float => sanitize_rupiah($state ?? 0))
+                ->rule(fn () => ['numeric', 'min:0', 'max:9999999999999999.99'])
+                ->columnSpanFull(),
+            Select::make('account_id')
+                ->label('Akun Kas/Bank')
+                ->inlineLabel()
+                ->options(fn (): array => self::getCashBankAccountOptions())
+                ->searchable()
+                ->preload()
+                ->native(false)
+                ->default(132)
+                ->columnSpanFull(),
+            Select::make('payment_method')
+                ->label('Metode')
+                ->inlineLabel()
+                ->options(PurchaseInvoicePayment::methodOptions())
+                ->default(PurchaseInvoicePayment::METHOD_CASH)
+                ->native(false)
+                ->columnSpanFull(),
+            TextInput::make('reference_number')
+                ->label('Referensi')
+                ->inlineLabel()
+                ->maxLength(60)
+                ->columnSpanFull(),
+            Toggle::make('is_manual')
+                ->label('Input Manual')
+                ->inlineLabel()
+                ->inline(false)
+                ->default(true)
+                ->columnSpanFull(),
+            FileUpload::make('attachments')
+                ->label('Lampiran')
+                ->inlineLabel()
+                ->directory('purchase-invoices/payments')
+                ->multiple()
+                ->maxFiles(5)
+                ->maxSize(5120)
+                ->downloadable()
+                ->previewable(false)
+                ->columnSpanFull(),
+            Textarea::make('notes')
+                ->label('Catatan')
+                ->inlineLabel()
+                ->rows(2)
+                ->columnSpanFull(),
+        ];
+    }
+
+    protected static function makeEditPaymentAction(): Action
+    {
+        return Action::make('edit_payment')
+            ->label('Ubah Pembayaran')
+            ->modalHeading('Detail Pembayaran')
+            ->modalSubmitActionLabel('Simpan')
+            ->modalWidth('lg')
+            ->schema(self::paymentFields())
+            ->extraAttributes(['data-row-trigger-only' => true])
+            ->mountUsing(function (Schema $schema, array $arguments, Repeater $component): void {
+                if (! empty($arguments['pending']) && is_array($arguments['payload'] ?? null)) {
+                    $schema->fill($arguments['payload']);
+
+                    return;
+                }
+
+                $itemKey = $arguments['item'] ?? null;
+                $state = self::getPaymentStateByKey($component, $itemKey) ?? self::defaultPaymentState();
+
+                $schema->fill($state);
+            })
+            ->action(function (array $data, array $arguments, Repeater $component): void {
+                \Illuminate\Support\Facades\Log::debug('[DEBUG] Modal Edit Payment', [
+                    'raw_paid_at' => $data['paid_at'] ?? null,
+                    'data' => $data,
+                ]);
+                $itemKey = $arguments['item'] ?? null;
+                $isPending = (bool) ($arguments['pending'] ?? false);
+
+                if ($arguments['delete_payment'] ?? false) {
+                    self::removePaymentState($component, $itemKey);
+                    return;
+                }
+
+                if ($isPending) {
+                    $data['__draft'] = false;
+                    self::upsertPaymentState($component, self::preparePaymentPayload($data));
+                    return;
+                }
+
+                self::upsertPaymentState($component, self::preparePaymentPayload($data), $itemKey);
+            })
+            ->extraModalFooterActions(fn (Action $action): array => [
+                $action->makeModalSubmitAction('delete_payment', arguments: ['delete_payment' => true])
+                    ->label('Hapus')
+                    ->color('danger')
+                    ->requiresConfirmation(),
+            ]);
+    }
+
+    protected static function upsertPaymentState(Repeater $component, array $payload, ?string $itemKey = null): void
+    {
+        $items = $component->getRawState() ?? [];
+        $key = $itemKey ?: (string) Str::uuid();
+
+
+        // Debug: log payload before saving to state
+        \Illuminate\Support\Facades\Log::debug('[DEBUG] upsertPaymentState payload', [
+            'key' => $key,
+            'payload' => $payload,
+        ]);
+
+        // Force paid_at to string (Y-m-d) before saving to state
+        if (isset($payload['paid_at']) && $payload['paid_at'] instanceof \Illuminate\Support\Carbon) {
+            $payload['paid_at'] = $payload['paid_at']->toDateString();
+        } elseif (isset($payload['paid_at']) && !is_string($payload['paid_at'])) {
+            $payload['paid_at'] = (string) $payload['paid_at'];
+        }
+
+        $items[$key] = $payload;
+
+        $component->rawState($items);
+        $component->callAfterStateUpdated();
+        $component->partiallyRender();
+
+        if ($itemKey) {
+            $livewire = $component->getLivewire();
+
+            if ($livewire && method_exists($livewire, 'dispatch')) {
+                $livewire->dispatch('filament::line-item-modal-closed');
+            }
+        }
+    }
+
+    protected static function removePaymentState(Repeater $component, ?string $itemKey): void
+    {
+        if (! $itemKey) {
+            return;
+        }
+
+        $items = $component->getRawState() ?? [];
+
+        if (! array_key_exists($itemKey, $items)) {
+            return;
+        }
+
+        unset($items[$itemKey]);
+
+        $component->rawState($items);
+        $component->callAfterStateUpdated();
+        $component->partiallyRender();
+    }
+
+    protected static function getPaymentStateByKey(Repeater $component, ?string $itemKey): ?array
+    {
+        if ($itemKey === null) {
+            return null;
+        }
+
+        $items = $component->getRawState() ?? [];
+
+        if (array_key_exists($itemKey, $items)) {
+            return $items[$itemKey];
+        }
+
+        if (ctype_digit((string) $itemKey)) {
+            $orderedKeys = array_keys($items);
+            $index = (int) $itemKey;
+
+            if (isset($orderedKeys[$index])) {
+                return $items[$orderedKeys[$index]] ?? null;
+            }
+        }
+
+        return null;
+    }
+
+    protected static function processPendingPaymentPayload(SchemaSet $set, SchemaGet $get, Repeater $component): void
+    {
+        $payload = $get('pending_payment_payload');
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $set('pending_payment_payload', null);
+
+        if (! self::triggerPendingPaymentModal($payload, $component)) {
+            $set('pending_payment_payload', $payload);
+        }
+    }
+
+    protected static function triggerPendingPaymentModal(array $payload, Repeater $component): bool
+    {
+        $schemaComponentKey = $component->getKey();
+        $livewire = $component->getLivewire();
+
+        if (blank($schemaComponentKey) || ! $livewire) {
+            return false;
+        }
+
+        $arguments = [
+            'pending' => true,
+            'payload' => $payload,
+        ];
+
+        if (method_exists($livewire, 'mountAction')) {
+            try {
+                $livewire->mountAction('edit_payment', $arguments, [
+                    'schemaComponent' => $schemaComponentKey,
+                ]);
+
+                return true;
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        if (method_exists($livewire, 'dispatch') && method_exists($livewire, 'getId')) {
+            $livewire->dispatch('filament::line-item-modal-requested', [
+                'livewireId' => $livewire->getId(),
+                'action' => 'edit_payment',
+                'arguments' => $arguments,
+                'context' => ['schemaComponent' => $schemaComponentKey],
+            ]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    protected static function resolvePaymentsComponentFrom(Component $context): ?Repeater
+    {
+        $component = $context->getRootContainer()->getComponent(
+            fn ($candidate): bool => $candidate instanceof Repeater
+                && $candidate->getStatePath(isAbsolute: false) === 'payments',
+            withHidden: true,
+        );
+
+        return $component instanceof Repeater ? $component : null;
+    }
+
+    protected static function preparePaymentPayload(array $data): array
+    {
+        $paidAt = $data['paid_at'] ?? null;
+
+        if ($paidAt instanceof Carbon) {
+            $paidAt = $paidAt->toDateString();
+        } elseif (is_string($paidAt) && filled($paidAt)) {
+            try {
+                $paidAt = Carbon::parse($paidAt)->toDateString();
+            } catch (\Exception $e) {
+                $paidAt = today()->toDateString();
+            }
+        } elseif (is_numeric($paidAt)) {
+            // If paidAt is a timestamp (int/float), treat as Y-m-d
+            try {
+                $paidAt = Carbon::createFromTimestamp((int)$paidAt)->toDateString();
+            } catch (\Exception $e) {
+                $paidAt = today()->toDateString();
+            }
+        } else {
+            $paidAt = today()->toDateString();
+        }
+
+        // Make sure paidAt is string (Y-m-d)
+        if (!is_string($paidAt)) {
+            $paidAt = today()->toDateString();
+        }
+
+        $amount = $data['amount'] ?? 0;
+        if (is_string($amount)) {
+            $amount = (float) str_replace([',', '.'], '', $amount);
+        }
+        $amount = (float) sanitize_rupiah($amount);
+
+        \Illuminate\Support\Facades\Log::debug('[DEBUG] preparePaymentPayload', [
+            'input_paid_at' => $data['paid_at'] ?? null,
+            'normalized_paid_at' => $paidAt,
+            'normalized_paid_at_type' => gettype($paidAt),
+            'input_amount' => $data['amount'] ?? null,
+            'normalized_amount' => $amount,
+        ]);
+
+        return [
+            'payment_type' => $data['payment_type'] ?? PurchaseInvoicePayment::TYPE_DOWN_PAYMENT,
+            'paid_at' => $paidAt,
+            'amount' => $amount,
+            'account_id' => $data['account_id'] ?? null,
+            'payment_method' => $data['payment_method'] ?? PurchaseInvoicePayment::METHOD_CASH,
+            'reference_number' => $data['reference_number'] ?? null,
+            'is_manual' => (bool) ($data['is_manual'] ?? false),
+            'attachments' => $data['attachments'] ?? [],
+            'notes' => $data['notes'] ?? null,
+            '__draft' => (bool) ($data['__draft'] ?? false),
+        ];
+    }
+
+    protected static function upsertInvoiceItemState(Repeater $component, array $payload, ?string $itemKey = null): void
+    {
+        $items = $component->getRawState() ?? [];
+        $key = $itemKey ?: (string) Str::uuid();
+
+        $items[$key] = $payload;
+
+        $component->rawState($items);
+        $component->callAfterStateUpdated();
+        $component->partiallyRender();
+
+        if ($itemKey) {
+            $livewire = $component->getLivewire();
+
+            if ($livewire && method_exists($livewire, 'dispatch')) {
+                $livewire->dispatch('filament::line-item-modal-closed');
+            }
+        }
+    }
+
+    protected static function removeInvoiceItemState(Repeater $component, ?string $itemKey): void
+    {
+        if (! $itemKey) {
+            return;
+        }
+
+        $items = $component->getRawState() ?? [];
+
+        if (! array_key_exists($itemKey, $items)) {
+            return;
+        }
+
+        unset($items[$itemKey]);
+
+        $component->rawState($items);
+        $component->callAfterStateUpdated();
+        $component->partiallyRender();
+    }
+
+    protected static function processPendingInvoiceItemPayload(SchemaSet $set, SchemaGet $get, Repeater $component): void
+    {
+        $payload = $get('pending_invoice_item_payload');
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $set('pending_invoice_item_payload', null);
+
+        if (! self::triggerPendingInvoiceItemModal($payload, $component)) {
+            $set('pending_invoice_item_payload', $payload);
+        }
+    }
+
+    protected static function buildPendingInvoiceItemPayloadFromProduct(int $productId): array
+    {
+        $data = self::defaultInvoiceItemState(draft: true);
+        $data['product_id'] = $productId;
+
+        $details = self::getProductDetails($productId);
+
+        if ($details) {
+            $data['item_name'] = $details['name'] ?? null;
+            $data['item_code'] = $details['code'] ?? null;
+            $data['unit'] = self::resolveProductUnitCode($details['unit_id'] ?? null);
+        }
+
+        return $data;
+    }
+
+    protected static function triggerPendingInvoiceItemModal(array $payload, Repeater $component): bool
+    {
+        $schemaComponentKey = $component->getKey();
+        $livewire = $component->getLivewire();
+
+        if (blank($schemaComponentKey) || ! $livewire) {
+            return false;
+        }
+
+        $arguments = [
+            'pending' => true,
+            'payload' => $payload,
+        ];
+
+        if (method_exists($livewire, 'mountAction')) {
+            try {
+                $livewire->mountAction('edit_invoice_item', $arguments, [
+                    'schemaComponent' => $schemaComponentKey,
+                ]);
+
+                return true;
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        if (method_exists($livewire, 'dispatch') && method_exists($livewire, 'getId')) {
+            $livewire->dispatch('filament::line-item-modal-requested', [
+                'livewireId' => $livewire->getId(),
+                'action' => 'edit_invoice_item',
+                'arguments' => $arguments,
+                'context' => ['schemaComponent' => $schemaComponentKey],
+            ]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    protected static function prepareInvoiceItemPayload(array $data): array
+    {
+        $details = self::getProductDetails($data['product_id'] ?? null);
+
+        $resolvedName = $data['item_name'] ?? $details['name'] ?? null;
+        $resolvedName = normalize_item_name($resolvedName);
+
+        $payload = [
+            'product_id' => $data['product_id'] ?? $details['id'] ?? null,
+            'item_code' => $data['item_code'] ?? $details['code'] ?? null,
+            'item_name' => $resolvedName ?: null,
+            'unit' => strtolower($data['unit'] ?? self::DEFAULT_UNIT),
+            'quantity' => sanitize_positive_decimal($data['quantity'] ?? 0, 3),
+            'unit_price' => sanitize_decimal($data['unit_price'] ?? 0),
+            'discount_type' => $data['discount_type'] ?? PurchaseInvoice::DISCOUNT_TYPE_AMOUNT,
+            'discount_value' => sanitize_decimal($data['discount_value'] ?? 0),
+            'discount_percentage' => isset($data['discount_percentage']) ? sanitize_decimal($data['discount_percentage'], 4) : null,
+            'apply_tax' => (bool) ($data['apply_tax'] ?? false),
+            'tax_rate' => sanitize_decimal($data['tax_rate'] ?? 0, 2),
+            'warehouse_id' => $data['warehouse_id'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            '__draft' => (bool) ($data['__draft'] ?? false),
+        ];
+
+        if ($payload['discount_type'] !== PurchaseInvoice::DISCOUNT_TYPE_PERCENTAGE) {
+            $payload['discount_percentage'] = null;
+        }
+
+        return $payload;
+    }
+
+    protected static function calculateInvoiceLineDisplayTotal(SchemaGet $get): float
+    {
+        $quantity = sanitize_positive_decimal($get('quantity') ?? 0, 3);
+        $unitPrice = sanitize_decimal($get('unit_price') ?? 0);
+        $discountType = $get('discount_type') ?? PurchaseInvoice::DISCOUNT_TYPE_AMOUNT;
+        $discountValue = sanitize_decimal($get('discount_value') ?? 0);
+        $discountPercentage = sanitize_decimal($get('discount_percentage') ?? null, 4);
+        $applyTax = (bool) ($get('apply_tax') ?? false);
+        $itemTaxRate = sanitize_decimal($get('tax_rate') ?? ($get('../../tax_rate') ?? 0), 2);
+        $isTaxInclusive = (bool) ($get('../../is_tax_inclusive') ?? $get('is_tax_inclusive') ?? false);
+
+        $lineBase = round($quantity * $unitPrice, 2);
+
+        $lineDiscount = $discountType === PurchaseInvoice::DISCOUNT_TYPE_PERCENTAGE
+            ? min($lineBase, round($lineBase * (min($discountPercentage ?: $discountValue, 100) / 100), 2))
+            : min($lineBase, $discountValue);
+
+        $afterDiscount = max($lineBase - $lineDiscount, 0);
+
+        if (! $applyTax || $itemTaxRate <= 0) {
+            return $afterDiscount;
+        }
+
+        if ($isTaxInclusive) {
+            return $afterDiscount;
+        }
+
+        return round($afterDiscount * (1 + ($itemTaxRate / 100)), 2);
+    }
+
+    protected static function formatCurrencyWithPrefix(float $value): string
+    {
+        return 'Rp ' . self::formatCurrency($value);
+    }
+
+    protected static function getAllProductOptions(): array
+    {
+        if (empty(self::$productOptionCache)) {
+            self::$productOptionCache = ['__manual' => '[Tambah item manual]'] + self::searchProducts();
+        }
+
+        return self::$productOptionCache;
+    }
+
+    protected static function searchProducts(?string $search = null): array
+    {
+        return Product::query()
+            ->where('is_active', true)
+            ->when($search, function (Builder $query) use ($search): void {
+                $query->where(function (Builder $builder) use ($search): void {
+                    $builder->where('name', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('name')
+            ->limit(25)
+            ->get()
+            ->mapWithKeys(fn (Product $product): array => [
+                $product->id => sprintf('%s · %s', $product->code, $product->name),
+            ])
+            ->toArray();
+    }
+
+    protected static function getProductDetails(?int $productId): ?array
+    {
+        if (! $productId) {
+            return null;
+        }
+
+        if (! array_key_exists($productId, self::$productDetailsCache)) {
+            self::$productDetailsCache[$productId] = Product::query()
+                ->find($productId, ['id', 'name', 'code', 'unit_id'])
+                ?->toArray();
+        }
+
+        return self::$productDetailsCache[$productId];
+    }
+
+    protected static function resolveProductUnitCode(?int $unitId): string
+    {
+        if (! $unitId) {
+            return self::DEFAULT_UNIT;
+        }
+
+        if (! array_key_exists($unitId, self::$unitCodeCache)) {
+            self::$unitCodeCache[$unitId] = Unit::query()
+                ->find($unitId, ['code'])
+                ?->code;
+        }
+
+        return strtolower(self::$unitCodeCache[$unitId] ?? self::DEFAULT_UNIT);
     }
 
     protected static function getUnitOptions(): array
@@ -1511,5 +2419,34 @@ JS))
             ->pluck('name', 'code')
             ->map(fn (string $name, string $code): string => sprintf('%s — %s', $code, $name))
             ->all();
+    }
+
+    protected static function getCashBankAccountOptions(): array
+    {
+        if (! empty(self::$accountLabelCache)) {
+            return self::$accountLabelCache;
+        }
+
+        self::$accountLabelCache = ChartOfAccount::query()
+            ->where('type', 'kas_bank')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name'])
+            ->mapWithKeys(fn (ChartOfAccount $record): array => [
+                $record->id => sprintf('%s — %s', $record->code, $record->name),
+            ])
+            ->all();
+
+        return self::$accountLabelCache;
+    }
+
+    protected static function formatAccountLabel($accountId): string
+    {
+        if (! $accountId) {
+            return '-';
+        }
+
+        $options = self::getCashBankAccountOptions();
+
+        return $options[$accountId] ?? sprintf('Akun #%s', $accountId);
     }
 }

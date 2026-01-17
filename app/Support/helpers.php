@@ -110,6 +110,12 @@ if (! function_exists('sanitize_rupiah')) {
             $amount = max($amount, 0.0);
         }
 
+        // Batasi maksimal sesuai tipe database decimal(18,2)
+        $maxAmount = 9999999999999999.99;
+        if ($amount > $maxAmount) {
+            $amount = $maxAmount;
+        }
+
         sanitize_decimal_log_debug($context ?? 'rupiah', $originalValue, (string) $amount, $amount);
 
         return $amount;
@@ -165,12 +171,12 @@ if (! function_exists('sanitize_decimal_log_debug')) {
         }
 
         try {
-            Log::debug('numeric_sanitizer.decimal', [
-                'context' => $context,
-                'original_value' => $originalValue,
-                'normalized_value' => $normalizedValue,
-                'result_value' => $resultValue,
-            ]);
+            // Log::debug('numeric_sanitizer.decimal', [
+            //     'context' => $context,
+            //     'original_value' => $originalValue,
+            //     'normalized_value' => $normalizedValue,
+            //     'result_value' => $resultValue,
+            // ]);
         } catch (Throwable $exception) {
             // Swallow logging exceptions to avoid interrupting execution when Log is not fully booted.
         }
